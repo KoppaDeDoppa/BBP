@@ -1,0 +1,19 @@
+To start/stop the local server:
+
+  Start server:
+
+  python3 -m http.server 8080 --directory /home/koppaarch/koding/bodenbar-kunder
+  Then open http://localhost:8080 in your browser.
+
+  Stop server:
+
+  pkill -f "http.server 8080"To start/stop the local server:
+
+  Start server:
+
+  python3 -m http.server 8080 --directory /home/koppaarch/koding/bodenbar-kunder
+  Then open http://localhost:8080 in your browser.
+
+  Stop server:
+
+  pkill -f "http.server 8080"

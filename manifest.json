@@ -1,0 +1,11 @@
+{
+  "name": "BodenBar",
+  "short_name": "BodenBar",
+  "description": "Bar management system for BodenBar",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0e17",
+  "theme_color": "#00f3ff",
+  "orientation": "landscape-primary",
+  "icons": []
+}
