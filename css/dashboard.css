@@ -1,0 +1,87 @@
+/* ========================================
+   BodenBar - Dashboard Styles
+   ======================================== */
+
+.dashboard-panel {
+    justify-content: flex-start;
+}
+
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--space-md);
+    width: 100%;
+}
+
+.stat-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--card-accent, var(--neon-cyan));
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+}
+
+.stat-card:hover {
+    border-color: var(--color-border-bright);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-card:hover::before {
+    opacity: 1;
+}
+
+.stat-card[data-stat="revenue"] { --card-accent: var(--neon-cyan); }
+.stat-card[data-stat="paid"] { --card-accent: var(--neon-green); }
+.stat-card[data-stat="outstanding"] { --card-accent: var(--neon-orange); }
+.stat-card[data-stat="customers"] { --card-accent: var(--neon-purple); }
+
+.stat-label {
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-text-muted);
+}
+
+.stat-value {
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xl);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
+    line-height: 1.2;
+}
+
+.stat-card[data-stat="revenue"] .stat-value { color: var(--neon-cyan); }
+.stat-card[data-stat="paid"] .stat-value { color: var(--neon-green); }
+.stat-card[data-stat="outstanding"] .stat-value { color: var(--neon-orange); }
+.stat-card[data-stat="customers"] .stat-value { color: var(--neon-purple); }
+
+/* Animation for value changes */
+.stat-value.updated {
+    animation: valueUpdate 0.5s ease;
+}
+
+@keyframes valueUpdate {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); color: var(--neon-gold); }
+    100% { transform: scale(1); }
+}
