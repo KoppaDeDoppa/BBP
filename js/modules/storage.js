@@ -225,6 +225,7 @@ class Storage {
         let revenue = 0;
         let paid = 0;
         let outstanding = 0;
+        let activeCustomers = 0;
 
         transactions.forEach(t => {
             if (t.type === 'purchase' || t.type === 'correction') {
@@ -236,6 +237,10 @@ class Storage {
 
         customers.forEach(c => {
             if (c.balance > 0) outstanding += c.balance;
+            // Active: not archived AND (balance !== 0 OR no payments made yet)
+            if (c.balance !== 0 || !this.hasMadePayment(c.id)) {
+                activeCustomers++;
+            }
         });
 
         const stats = {
@@ -244,7 +249,7 @@ class Storage {
             paid,
             outstanding,
             transactionCount: transactions.length,
-            activeCustomers: customers.length
+            activeCustomers
         };
 
         localStorage.setItem(STORAGE_KEYS.DAILY_STATS, JSON.stringify(stats));
@@ -271,6 +276,12 @@ class Storage {
 
     getProduct(id) {
         return DEFAULT_PRODUCTS.find(p => p.id === id);
+    }
+
+    // Check if customer has made any payment transactions
+    hasMadePayment(customerId) {
+        const transactions = this.getCustomerTransactions(customerId);
+        return transactions.some(t => t.type === 'payment');
     }
 
     // Utility

@@ -9,6 +9,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
 }
 
 .reports-header {
@@ -16,9 +17,13 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: var(--space-lg);
-    padding-bottom: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
+    background: var(--bg-glass-strong);
+    backdrop-filter: var(--glass-blur);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    margin: calc(-1 * var(--space-lg)) calc(-1 * var(--space-lg)) var(--space-lg);
 }
 
 .reports-header h2 {
@@ -205,6 +210,9 @@
     font-weight: 700;
     color: var(--color-text);
     margin-top: auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .stat-tile-value.revenue { color: var(--neon-cyan); }
@@ -280,9 +288,12 @@
     flex-direction: column;
     gap: var(--space-md);
     padding: var(--space-lg);
-    background: var(--bg-tertiary);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
+    background: var(--bg-glass-strong);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+    margin: var(--space-lg) calc(-1 * var(--space-lg)) calc(-1 * var(--space-lg));
+    border-top: 1px solid var(--glass-border);
 }
 
 .export-btn {
@@ -297,6 +308,9 @@
     transition: all var(--transition-fast);
     text-align: left;
     width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .export-btn:hover {
@@ -324,16 +338,23 @@
 
 .export-info {
     flex: 1;
+    min-width: 0;
 }
 
 .export-name {
     font-weight: 600;
     color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .export-desc {
     font-size: var(--fs-xs);
     color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Print Report */

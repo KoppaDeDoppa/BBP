@@ -7,6 +7,7 @@
     width: 90vw;
     max-height: 90vh;
     overflow-y: auto;
+    background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
 }
 
 .settlement-header {
@@ -103,6 +104,10 @@
 .summary-name {
     font-weight: 500;
     color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
 }
 
 .summary-count {
@@ -112,6 +117,7 @@
     background: var(--bg-secondary);
     padding: 2px 8px;
     border-radius: var(--radius-sm);
+    flex-shrink: 0;
 }
 
 .summary-amount {
@@ -119,6 +125,10 @@
     font-size: var(--fs-md);
     font-weight: 600;
     color: var(--neon-cyan);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
 }
 
 .summary-row.total .summary-amount {
@@ -160,6 +170,9 @@
     font-weight: 700;
     color: var(--color-text);
     letter-spacing: 0.1em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Status & Payment */
@@ -182,6 +195,10 @@
 .status-label {
     font-weight: 500;
     color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
 }
 
 .status-value {
@@ -192,6 +209,10 @@
     border-radius: var(--radius-full);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
 }
 
 .status-value.paid {

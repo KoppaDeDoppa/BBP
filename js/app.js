@@ -111,6 +111,7 @@ function renderCustomerLists() {
         handleSelectCustomer,
         handleArchiveCustomer,
         handleUnarchiveCustomer,
+        handleDeleteCustomer,
         showArchived,
         showPaid
     );
@@ -193,6 +194,28 @@ function handleUnarchiveCustomer(customerId) {
     renderCustomerLists();
     renderDashboard(storage.getDailyStats());
     showToast(`${customer.name} gjenopprettet`, 'success');
+}
+
+// Delete Customer
+function handleDeleteCustomer(customerId) {
+    const customer = storage.getCustomer(customerId);
+    if (!customer) return;
+
+    showConfirmModal(
+        'Slett kunde',
+        `Er du sikker på at du vil <strong>permanente slett</strong> <strong>${customer.name}</strong>? Alle kjøp, betalinger og historikk vil forsvinne og kan ikke gjenopprettes.`,
+        'danger',
+        () => {
+            storage.deleteCustomer(customerId);
+            if (getActiveCustomerId() === customerId) {
+                setActiveCustomerId(null);
+                renderActiveCustomer(null);
+            }
+            renderCustomerLists();
+            renderDashboard(storage.getDailyStats());
+            showToast(`${customer.name} slettet`, 'error');
+        }
+    );
 }
 
 // Undo Last Purchase

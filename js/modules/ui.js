@@ -5,12 +5,6 @@
 
 import { storage, DEFAULT_PRODUCTS } from './storage.js';
 
-// Check if customer has made any payment transactions
-function hasMadePayment(customerId) {
-    const transactions = storage.getCustomerTransactions(customerId);
-    return transactions.some(t => t.type === 'payment');
-}
-
 // DOM Elements Cache
 let elements = {};
 
@@ -46,9 +40,6 @@ export function initElements() {
         tabActive: document.getElementById('tab-active'),
         tabPaid: document.getElementById('tab-paid'),
         tabArchived: document.getElementById('tab-archived'),
-        activeCustomers: document.getElementById('active-customers'),
-        paidCustomers: document.getElementById('paid-customers'),
-        archivedCustomers: document.getElementById('archived-customers'),
         activeCustomerList: document.getElementById('active-customer-list'),
         paidCustomerList: document.getElementById('paid-customer-list'),
         archivedCustomerList: document.getElementById('archived-customer-list'),
@@ -172,7 +163,7 @@ export function renderActiveCustomer(customer) {
 
     if (elements.customerName) elements.customerName.textContent = customer.name;
     if (elements.customerStatus) {
-        const hasPaid = hasMadePayment(customer.id);
+        const hasPaid = storage.hasMadePayment(customer.id);
         let statusText, statusClass;
         if (customer.archived) {
             statusText = 'Arkivert';
@@ -206,7 +197,7 @@ export function renderActiveCustomer(customer) {
 }
 
 // Render Customer List
-export function renderCustomerList(customers, activeCustomerId, onSelect, onArchive, onUnarchive, showArchived = false, showPaid = false) {
+export function renderCustomerList(customers, activeCustomerId, onSelect, onArchive, onUnarchive, onDelete, showArchived = false, showPaid = false) {
     let listEl;
     let filtered;
     let emptyText;
@@ -214,7 +205,7 @@ export function renderCustomerList(customers, activeCustomerId, onSelect, onArch
     if (showPaid) {
         listEl = elements.paidCustomerList;
         // Betalt: not archived, balance = 0, AND has made at least one payment
-        filtered = customers.filter(c => !c.archived && c.balance === 0 && hasMadePayment(c.id));
+        filtered = customers.filter(c => !c.archived && c.balance === 0 && storage.hasMadePayment(c.id));
         emptyText = 'Ingen betalte kunder';
     } else if (showArchived) {
         listEl = elements.archivedCustomerList;
@@ -223,7 +214,7 @@ export function renderCustomerList(customers, activeCustomerId, onSelect, onArch
     } else {
         listEl = elements.activeCustomerList;
         // Aktive: not archived AND (balance !== 0 OR no payments made yet)
-        filtered = customers.filter(c => !c.archived && (c.balance !== 0 || !hasMadePayment(c.id)));
+        filtered = customers.filter(c => !c.archived && (c.balance !== 0 || !storage.hasMadePayment(c.id)));
         emptyText = 'Ingen aktive kunder';
     }
 
@@ -262,6 +253,12 @@ export function renderCustomerList(customers, activeCustomerId, onSelect, onArch
                         </svg>
                       </button>`
                 }
+                <button class="btn btn-icon btn-ghost btn-danger-ghost" data-action="delete" aria-label="Slett ${escapeHtml(customer.name)}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1-2-2m0 0a2 2 0 0 0 2 2m0 0v6"></path>
+                    </svg>
+                </button>
             </div>
         </li>
     `).join('');
@@ -294,6 +291,7 @@ export function renderCustomerList(customers, activeCustomerId, onSelect, onArch
                 const action = btn.dataset.action;
                 if (action === 'archive') onArchive(customerId);
                 if (action === 'unarchive') onUnarchive(customerId);
+                if (action === 'delete') onDelete(customerId);
             });
         });
     });
@@ -303,19 +301,19 @@ export function renderCustomerList(customers, activeCustomerId, onSelect, onArch
 // tabType: 'active', 'paid', or 'archived'
 export function switchCustomerTab(tabType) {
     if (!elements.tabActive || !elements.tabPaid || !elements.tabArchived ||
-        !elements.activeCustomers || !elements.paidCustomers || !elements.archivedCustomers) return;
+        !elements.activeCustomerList || !elements.paidCustomerList || !elements.archivedCustomerList) return;
 
     // Reset all tabs
     const tabs = [
-        { btn: elements.tabActive, panel: elements.activeCustomers },
-        { btn: elements.tabPaid, panel: elements.paidCustomers },
-        { btn: elements.tabArchived, panel: elements.archivedCustomers }
+        { btn: elements.tabActive, list: elements.activeCustomerList },
+        { btn: elements.tabPaid, list: elements.paidCustomerList },
+        { btn: elements.tabArchived, list: elements.archivedCustomerList }
     ];
 
-    tabs.forEach(({ btn, panel }) => {
+    tabs.forEach(({ btn, list }) => {
         btn.classList.remove('active');
         btn.setAttribute('aria-selected', 'false');
-        panel.classList.add('hidden');
+        list.classList.add('hidden');
     });
 
     // Activate selected tab
@@ -328,7 +326,7 @@ export function switchCustomerTab(tabType) {
     if (activeTab) {
         activeTab.btn.classList.add('active');
         activeTab.btn.setAttribute('aria-selected', 'true');
-        activeTab.panel.classList.remove('hidden');
+        activeTab.list.classList.remove('hidden');
     }
 }
 

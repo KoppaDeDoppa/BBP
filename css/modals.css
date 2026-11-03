@@ -124,6 +124,7 @@
     border-top: 1px solid var(--color-border);
     flex-shrink: 0;
     flex-wrap: wrap;
+    background: var(--bg-secondary);
 }
 
 /* Form Styles */
@@ -264,10 +265,14 @@
     gap: var(--space-sm);
     font-weight: 500;
     color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .history-product-icon {
     font-size: 18px;
+    flex-shrink: 0;
 }
 
 .history-meta {
@@ -275,11 +280,17 @@
     gap: var(--space-md);
     font-size: var(--fs-xs);
     color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .history-time {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .history-action {
@@ -297,6 +308,10 @@
     font-size: var(--fs-md);
     font-weight: 600;
     color: var(--neon-cyan);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
 }
 
 .history-amount.negative { color: var(--neon-red); }
@@ -329,6 +344,10 @@
     font-size: var(--fs-lg);
     font-weight: 600;
     color: var(--neon-cyan);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
 }
 
 /* Confirm Dialog */
@@ -429,6 +448,9 @@
     font-size: var(--fs-sm);
     color: var(--color-text);
     line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .toast-close {

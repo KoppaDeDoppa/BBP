@@ -44,40 +44,58 @@
                 </div>
             </section>
 
-            <!-- Center Panel: Dashboard -->
+            <!-- Center Panel: Dashboard Stats + Customer List -->
             <section class="panel dashboard-panel" aria-labelledby="dashboard-heading">
-                <h2 id="dashboard-heading" class="panel-title">Dashboard</h2>
-                <div class="dashboard-stats" role="list">
-                    <article class="stat-card" data-stat="revenue">
-                        <span class="stat-label">Omsatt i dag</span>
-                        <span id="stat-revenue" class="stat-value">0 kr</span>
-                    </article>
-                    <article class="stat-card" data-stat="paid">
-                        <span class="stat-label">Betalt</span>
-                        <span id="stat-paid" class="stat-value">0 kr</span>
-                    </article>
-                    <article class="stat-card" data-stat="outstanding">
-                        <span class="stat-label">Utestående</span>
-                        <span id="stat-outstanding" class="stat-value">0 kr</span>
-                    </article>
-                    <article class="stat-card" data-stat="customers">
-                        <span class="stat-label">Aktive kunder</span>
-                        <span id="stat-customers" class="stat-value">0</span>
-                    </article>
+                <div class="dashboard-content">
+                    <!-- Dashboard Stats Column -->
+                    <div class="dashboard-stats-col" aria-labelledby="dashboard-heading">
+                        <h2 id="dashboard-heading" class="panel-title">Dashboard</h2>
+                        <div class="dashboard-stats" role="list">
+                            <article class="stat-card" data-stat="revenue">
+                                <span class="stat-label">Omsatt i dag</span>
+                                <span id="stat-revenue" class="stat-value">0 kr</span>
+                            </article>
+                            <article class="stat-card" data-stat="outstanding">
+                                <span class="stat-label">Utestående</span>
+                                <span id="stat-outstanding" class="stat-value">0 kr</span>
+                            </article>
+                            <article class="stat-card" data-stat="paid">
+                                <span class="stat-label">Betalt</span>
+                                <span id="stat-paid" class="stat-value">0 kr</span>
+                            </article>
+                            <article class="stat-card" data-stat="customers">
+                                <span class="stat-label">Aktive kunder</span>
+                                <span id="stat-customers" class="stat-value">0</span>
+                            </article>
+                        </div>
+                    </div>
+
+                    <!-- Customer List Column -->
+                    <div class="customer-list-col" aria-labelledby="customer-list-heading">
+                        <div class="panel-header">
+                            <h2 id="customer-list-heading" class="panel-title">Kunder</h2>
+                            <button id="add-customer-btn" class="btn-primary btn-sm" aria-label="Legg til ny kunde">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                Legg til
+                            </button>
+                        </div>
+
+                        <div class="customer-list-wrapper" role="list">
+                            <ul id="active-customer-list" class="customer-list" role="list"></ul>
+                            <ul id="paid-customer-list" class="customer-list hidden" role="list"></ul>
+                            <ul id="archived-customer-list" class="customer-list hidden" role="list"></ul>
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            <!-- Right Panel: Active Customer + Customer List -->
+            <!-- Right Panel: Active Customer Display -->
             <section class="panel customer-panel" aria-labelledby="customer-heading">
                 <div class="panel-header">
                     <h2 id="customer-heading" class="panel-title">Aktiv kunde</h2>
-                    <button id="add-customer-btn" class="btn-primary btn-sm" aria-label="Legg til ny kunde">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                        Legg til
-                    </button>
                 </div>
 
                 <!-- Active Customer Display -->
@@ -88,7 +106,7 @@
                             <circle cx="12" cy="7" r="4"></circle>
                         </svg>
                         <p>Ingen kunde valgt</p>
-                        <span class="hint">Velg en kunde fra listen under</span>
+                        <span class="hint">Velg en kunde fra listen</span>
                     </div>
                     <div id="customer-details" class="customer-details hidden">
                         <div class="customer-info">
@@ -131,21 +149,13 @@
                     </div>
                 </div>
 
-                <!-- Customer List -->
-                <div class="customer-list-section">
-                    <div class="list-tabs" role="tablist">
+                <!-- Filter Tabs at bottom of Active Customer panel -->
+                <div class="customer-list-section" aria-labelledby="customer-filter-heading">
+                    <h3 id="customer-filter-heading" class="visually-hidden">Filtrer kunder</h3>
+                    <div class="list-tabs" role="tablist" aria-label="Kundefilter">
                         <button id="tab-active" class="tab-btn active" role="tab" aria-selected="true" aria-controls="active-customers">Aktive</button>
                         <button id="tab-paid" class="tab-btn" role="tab" aria-selected="false" aria-controls="paid-customers">Betalt</button>
                         <button id="tab-archived" class="tab-btn" role="tab" aria-selected="false" aria-controls="archived-customers">Arkiverte</button>
-                    </div>
-                    <div id="active-customers" class="tab-panel" role="tabpanel">
-                        <ul id="active-customer-list" class="customer-list" role="list"></ul>
-                    </div>
-                    <div id="paid-customers" class="tab-panel hidden" role="tabpanel">
-                        <ul id="paid-customer-list" class="customer-list" role="list"></ul>
-                    </div>
-                    <div id="archived-customers" class="tab-panel hidden" role="tabpanel">
-                        <ul id="archived-customer-list" class="customer-list" role="list"></ul>
                     </div>
                 </div>
             </section>
