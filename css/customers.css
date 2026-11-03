@@ -3,6 +3,8 @@
    ======================================== */
 
 .customer-panel {
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
 }
 
@@ -13,6 +15,7 @@
     margin-bottom: var(--space-md);
     flex-wrap: wrap;
     gap: var(--space-sm);
+    flex-shrink: 0;
 }
 
 /* Active Customer Display */
@@ -20,6 +23,19 @@
     flex: 1;
     overflow-y: auto;
     padding-right: var(--space-xs);
+    min-height: 0;
+}
+
+/* Filter Tabs at bottom of customer panel */
+.customer-list-section {
+    flex-shrink: 0;
+    margin-top: var(--space-lg);
+    padding-top: var(--space-lg);
+    border-top: 1px solid var(--color-border);
+}
+
+.customer-list-section .list-tabs {
+    margin-bottom: 0;
 }
 
 .no-customer-selected {
@@ -68,6 +84,11 @@
     font-size: var(--fs-xl);
     font-weight: 700;
     color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
 }
 
 .status-badge {
@@ -136,6 +157,9 @@
     font-size: var(--fs-lg);
     font-weight: 600;
     color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .stat-item-value.balance.positive { color: var(--neon-green); }

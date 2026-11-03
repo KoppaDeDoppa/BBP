@@ -46,9 +46,6 @@ export function initElements() {
         tabActive: document.getElementById('tab-active'),
         tabPaid: document.getElementById('tab-paid'),
         tabArchived: document.getElementById('tab-archived'),
-        activeCustomers: document.getElementById('active-customers'),
-        paidCustomers: document.getElementById('paid-customers'),
-        archivedCustomers: document.getElementById('archived-customers'),
         activeCustomerList: document.getElementById('active-customer-list'),
         paidCustomerList: document.getElementById('paid-customer-list'),
         archivedCustomerList: document.getElementById('archived-customer-list'),
@@ -206,7 +203,7 @@ export function renderActiveCustomer(customer) {
 }
 
 // Render Customer List
-export function renderCustomerList(customers, activeCustomerId, onSelect, onArchive, onUnarchive, showArchived = false, showPaid = false) {
+export function renderCustomerList(customers, activeCustomerId, onSelect, onArchive, onUnarchive, onDelete, showArchived = false, showPaid = false) {
     let listEl;
     let filtered;
     let emptyText;
@@ -262,6 +259,12 @@ export function renderCustomerList(customers, activeCustomerId, onSelect, onArch
                         </svg>
                       </button>`
                 }
+                <button class="btn btn-icon btn-ghost btn-danger-ghost" data-action="delete" aria-label="Slett ${escapeHtml(customer.name)}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1-2-2m0 0a2 2 0 0 0 2 2m0 0v6"></path>
+                    </svg>
+                </button>
             </div>
         </li>
     `).join('');
@@ -294,6 +297,7 @@ export function renderCustomerList(customers, activeCustomerId, onSelect, onArch
                 const action = btn.dataset.action;
                 if (action === 'archive') onArchive(customerId);
                 if (action === 'unarchive') onUnarchive(customerId);
+                if (action === 'delete') onDelete(customerId);
             });
         });
     });
@@ -303,19 +307,19 @@ export function renderCustomerList(customers, activeCustomerId, onSelect, onArch
 // tabType: 'active', 'paid', or 'archived'
 export function switchCustomerTab(tabType) {
     if (!elements.tabActive || !elements.tabPaid || !elements.tabArchived ||
-        !elements.activeCustomers || !elements.paidCustomers || !elements.archivedCustomers) return;
+        !elements.activeCustomerList || !elements.paidCustomerList || !elements.archivedCustomerList) return;
 
     // Reset all tabs
     const tabs = [
-        { btn: elements.tabActive, panel: elements.activeCustomers },
-        { btn: elements.tabPaid, panel: elements.paidCustomers },
-        { btn: elements.tabArchived, panel: elements.archivedCustomers }
+        { btn: elements.tabActive, list: elements.activeCustomerList },
+        { btn: elements.tabPaid, list: elements.paidCustomerList },
+        { btn: elements.tabArchived, list: elements.archivedCustomerList }
     ];
 
-    tabs.forEach(({ btn, panel }) => {
+    tabs.forEach(({ btn, list }) => {
         btn.classList.remove('active');
         btn.setAttribute('aria-selected', 'false');
-        panel.classList.add('hidden');
+        list.classList.add('hidden');
     });
 
     // Activate selected tab
@@ -328,7 +332,7 @@ export function switchCustomerTab(tabType) {
     if (activeTab) {
         activeTab.btn.classList.add('active');
         activeTab.btn.setAttribute('aria-selected', 'true');
-        activeTab.panel.classList.remove('hidden');
+        activeTab.list.classList.remove('hidden');
     }
 }
 
