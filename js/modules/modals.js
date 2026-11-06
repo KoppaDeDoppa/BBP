@@ -671,8 +671,8 @@ function renderAdminProductRows() {
         return `
             <form class="admin-product-row" data-product-form data-product-id="${escapeHtml(product.id)}">
                 <div class="admin-product-fields">
-                    <label>Ikon
-                        <input name="icon" type="text" required maxlength="8" value="${escapeHtml(product.icon)}" aria-label="Ikon for ${escapeHtml(product.name)}">
+                    <label>Ikon (valgfritt)
+                        <input name="icon" type="text" maxlength="8" value="${escapeHtml(product.icon)}" aria-label="Ikon for ${escapeHtml(product.name)}" placeholder="Emoji eller ikon">
                     </label>
                     <label>Produktnavn
                         <input name="name" type="text" required maxlength="60" value="${escapeHtml(product.name)}" aria-label="Navn på ${escapeHtml(product.name)}">
@@ -730,8 +730,8 @@ export function showAdminModal() {
                 <form id="admin-add-product-form" class="admin-add-product-form">
                     <h5>Legg til produkt</h5>
                     <div class="admin-product-fields">
-                        <label>Ikon
-                            <input name="icon" type="text" required maxlength="8" value="🍷" aria-label="Ikon for nytt produkt">
+                        <label>Ikon (valgfritt)
+                            <input name="icon" type="text" maxlength="8" value="🍷" aria-label="Ikon for nytt produkt" placeholder="Emoji eller ikon">
                         </label>
                         <label>Produktnavn
                             <input name="name" type="text" required maxlength="60" placeholder="For eksempel Vin">

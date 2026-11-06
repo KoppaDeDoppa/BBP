@@ -29,7 +29,7 @@ function validateProduct(input) {
     const id = requireText(input.id, 'Produkt-ID', 64);
     if (!/^[a-zA-Z0-9_-]+$/.test(id)) badRequest('Produkt-ID er ugyldig.');
     const name = requireText(input.name, 'Produktnavn', 60);
-    const icon = requireText(input.icon, 'Produktikon', 8);
+    const icon = typeof input.icon === 'string' ? input.icon.trim().slice(0, 8) : '';
     const price = requireAmount(input.price, 'Prisen');
     if (input.member !== undefined && typeof input.member !== 'boolean') badRequest('Medlemsvalget er ugyldig.');
     return { id, name, icon, price, member: input.member === true };
