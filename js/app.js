@@ -199,15 +199,19 @@ function handleArchiveCustomer(customerId) {
         'Arkiver kunde',
         `Er du sikker på at du vil arkivere <strong>${customer.name}</strong>? Kunden vil fortsatt bli med i rapporter, men skjules fra listen over aktive kunder.`,
         'warning',
-        () => {
-            storage.archiveCustomer(customerId);
-            if (getActiveCustomerId() === customerId) {
-                setActiveCustomerId(null);
-                renderActiveCustomer(null);
+        async () => {
+            try {
+                await storage.archiveCustomer(customerId);
+                if (getActiveCustomerId() === customerId) {
+                    setActiveCustomerId(null);
+                    renderActiveCustomer(null);
+                }
+                renderCustomerLists();
+                renderDashboard(storage.getDailyStats());
+                showToast(`${customer.name} arkivert`, 'info');
+            } catch (error) {
+                showToast(error.message || 'Kunne ikke arkivere kunden', 'error');
             }
-            renderCustomerLists();
-            renderDashboard(storage.getDailyStats());
-            showToast(`${customer.name} arkivert`, 'info');
         }
     );
 }
@@ -217,10 +221,11 @@ function handleUnarchiveCustomer(customerId) {
     const customer = storage.getCustomer(customerId);
     if (!customer) return;
 
-    storage.unarchiveCustomer(customerId);
-    renderCustomerLists();
-    renderDashboard(storage.getDailyStats());
-    showToast(`${customer.name} gjenopprettet`, 'success');
+    storage.unarchiveCustomer(customerId).then(() => {
+        renderCustomerLists();
+        renderDashboard(storage.getDailyStats());
+        showToast(`${customer.name} gjenopprettet`, 'success');
+    }).catch(error => showToast(error.message || 'Kunne ikke gjenopprette kunden', 'error'));
 }
 
 // Delete Customer
@@ -232,15 +237,19 @@ function handleDeleteCustomer(customerId) {
         'Slett kunde',
         `Er du sikker på at du vil <strong>permanente slett</strong> <strong>${customer.name}</strong>? Alle kjøp, betalinger og historikk vil forsvinne og kan ikke gjenopprettes.`,
         'danger',
-        () => {
-            storage.deleteCustomer(customerId);
-            if (getActiveCustomerId() === customerId) {
-                setActiveCustomerId(null);
-                renderActiveCustomer(null);
+        async () => {
+            try {
+                await storage.deleteCustomer(customerId);
+                if (getActiveCustomerId() === customerId) {
+                    setActiveCustomerId(null);
+                    renderActiveCustomer(null);
+                }
+                renderCustomerLists();
+                renderDashboard(storage.getDailyStats());
+                showToast(`${customer.name} slettet`, 'error');
+            } catch (error) {
+                showToast(error.message || 'Kunne ikke slette kunden', 'error');
             }
-            renderCustomerLists();
-            renderDashboard(storage.getDailyStats());
-            showToast(`${customer.name} slettet`, 'error');
         }
     );
 }
@@ -252,20 +261,21 @@ function handleUndoLast() {
     const customer = storage.getCustomer(getActiveCustomerId());
     if (!customer) return;
 
-    const removed = storage.removeLastTransaction(getActiveCustomerId());
-    if (!removed) {
-        showToast('Ingen kjøp å angre', 'warning');
-        return;
-    }
+    storage.removeLastTransaction(getActiveCustomerId()).then(removed => {
+        if (!removed) {
+            showToast('Ingen kjøp å angre', 'warning');
+            return;
+        }
 
-    // Update customer balance
-    const newBalance = customer.balance - removed.amount;
-    storage.updateCustomer(getActiveCustomerId(), { balance: newBalance });
+        // Update customer balance
+        const newBalance = customer.balance - removed.amount;
+        storage.updateCustomer(getActiveCustomerId(), { balance: newBalance });
 
-    renderActiveCustomer(storage.getCustomer(getActiveCustomerId()));
-    renderCustomerLists();
-    renderDashboard(storage.getDailyStats());
-    showToast(`Angret ${removed.productName} (${formatCurrency(removed.amount)})`, 'info');
+        renderActiveCustomer(storage.getCustomer(getActiveCustomerId()));
+        renderCustomerLists();
+        renderDashboard(storage.getDailyStats());
+        showToast(`Angret ${removed.productName} (${formatCurrency(removed.amount)})`, 'info');
+    }).catch(error => showToast(error.message || 'Kunne ikke angre', 'error'));
 }
 
 // Correct Purchase
@@ -278,7 +288,7 @@ function handleCorrectPurchase() {
         return;
     }
 
-    showCorrectionModal(getActiveCustomerId(), transactions[0], (newAmount, newProductId) => {
+    showCorrectionModal(getActiveCustomerId(), transactions[0], async (newAmount, newProductId) => {
         const customer = storage.getCustomer(getActiveCustomerId());
         const oldTransaction = transactions[0];
         const oldAmount = oldTransaction.amount;
@@ -287,20 +297,24 @@ function handleCorrectPurchase() {
         const diff = newAmount - oldAmount;
         const newBalance = customer.balance + diff;
 
-        // Update transaction
-        storage.correctTransaction(oldTransaction.id, {
-            amount: newAmount,
-            productId: newProductId,
-            productName: storage.getProduct(newProductId)?.name || 'Ukjent'
-        });
+        try {
+            // Update transaction
+            await storage.correctTransaction(oldTransaction.id, {
+                amount: newAmount,
+                productId: newProductId,
+                productName: storage.getProduct(newProductId)?.name || 'Ukjent'
+            });
 
-        // Update customer balance
-        storage.updateCustomer(getActiveCustomerId(), { balance: newBalance });
+            // Update customer balance
+            await storage.updateCustomer(getActiveCustomerId(), { balance: newBalance });
 
-        renderActiveCustomer(storage.getCustomer(getActiveCustomerId()));
-        renderCustomerLists();
-        renderDashboard(storage.getDailyStats());
-        showToast('Kjøp korrigert', 'success');
+            renderActiveCustomer(storage.getCustomer(getActiveCustomerId()));
+            renderCustomerLists();
+            renderDashboard(storage.getDailyStats());
+            showToast('Kjøp korrigert', 'success');
+        } catch (error) {
+            showToast(error.message || 'Kunne ikke korrigere kjøpet', 'error');
+        }
     });
 }
 

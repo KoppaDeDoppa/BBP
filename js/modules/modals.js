@@ -190,9 +190,10 @@ export function showCustomerModal(customer = null) {
         closeBtn?.removeEventListener('click', handleCancel);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const nameInput = document.getElementById('customer-name-input');
+        const submitButton = form?.querySelector('[data-modal-submit]');
         const name = nameInput?.value?.trim();
 
         if (!name) {
@@ -201,18 +202,23 @@ export function showCustomerModal(customer = null) {
             return;
         }
 
-        cleanup();
-        closeModal();
-
-        if (isEdit) {
-            storage.updateCustomer(customer.id, { name });
-            showToast(`${name} oppdatert`, 'success');
-        } else {
-            const newCustomer = storage.addCustomer(name);
-            setActiveCustomerId(newCustomer.id);
-            showToast(`${name} lagt til`, 'success');
+        if (submitButton) submitButton.disabled = true;
+        try {
+            if (isEdit) {
+                await storage.updateCustomer(customer.id, { name });
+            } else {
+                const newCustomer = await storage.addCustomer(name);
+                setActiveCustomerId(newCustomer.id);
+            }
+            cleanup();
+            closeModal();
+            refreshUI();
+            showToast(`${name} ${isEdit ? 'oppdatert' : 'lagt til'}`, 'success');
+        } catch (error) {
+            showToast(error.message || 'Kunne ikke lagre kunden', 'error');
+        } finally {
+            if (submitButton) submitButton.disabled = false;
         }
-        refreshUI();
     };
 
     const handleCancel = () => {
@@ -300,40 +306,44 @@ export function showSettlementModal() {
         }
     };
 
-    const handleSettle = (e) => {
+    const handleSettle = async (e) => {
         const customerId = e.target.dataset.customerId;
         const customer = storage.getCustomer(customerId);
         if (!customer) return;
 
-        if (customer.balance > 0) {
-            // Register payment
-            storage.addTransaction({
-                customerId,
-                type: 'payment',
-                amount: customer.balance,
-                productId: 'payment',
-                productName: 'Betaling',
-                price: customer.balance
-            });
-            storage.updateCustomer(customerId, { balance: 0 });
-            showToast(`Betaling registrert for ${customer.name}`, 'success');
-        } else {
-            // Credit back (negative balance)
-            storage.addTransaction({
-                customerId,
-                type: 'correction',
-                amount: -customer.balance,
-                productId: 'credit',
-                productName: 'Gjenopptak',
-                price: -customer.balance
-            });
-            storage.updateCustomer(customerId, { balance: 0 });
-            showToast(`Gjenopptak registrert for ${customer.name}`, 'success');
-        }
+        try {
+            if (customer.balance > 0) {
+                // Register payment
+                await storage.addTransaction({
+                    customerId,
+                    type: 'payment',
+                    amount: customer.balance,
+                    productId: 'payment',
+                    productName: 'Betaling',
+                    price: customer.balance
+                });
+                await storage.updateCustomer(customerId, { balance: 0 });
+                showToast(`Betaling registrert for ${customer.name}`, 'success');
+            } else {
+                // Credit back (negative balance)
+                await storage.addTransaction({
+                    customerId,
+                    type: 'correction',
+                    amount: -customer.balance,
+                    productId: 'credit',
+                    productName: 'Gjenopptak',
+                    price: -customer.balance
+                });
+                await storage.updateCustomer(customerId, { balance: 0 });
+                showToast(`Gjenopptak registrert for ${customer.name}`, 'success');
+            }
 
-        cleanup();
-        closeModal();
-        refreshUI();
+            cleanup();
+            closeModal();
+            refreshUI();
+        } catch (error) {
+            showToast(error.message || 'Kunne ikke registrere oppgjør', 'error');
+        }
     };
 
     closeBtn?.addEventListener('click', handleClose);
@@ -780,13 +790,13 @@ export function showAdminModal() {
         };
     };
 
-    const handleProductSave = (e) => {
+    const handleProductSave = async (e) => {
         const form = e.target.closest('[data-product-form]');
         if (!form) return;
         e.preventDefault();
         if (!form.reportValidity()) return;
         try {
-            const product = storage.updateProduct(form.dataset.productId, readProductForm(form));
+            const product = await storage.updateProduct(form.dataset.productId, readProductForm(form));
             if (!product) throw new Error('Fant ikke produktet.');
             refreshUI();
             showToast(`${product.name} oppdatert`, 'success');
@@ -795,11 +805,11 @@ export function showAdminModal() {
         }
     };
 
-    const handleAddProduct = (e) => {
+    const handleAddProduct = async (e) => {
         e.preventDefault();
         if (!addProductForm.reportValidity()) return;
         try {
-            const product = storage.addProduct(readProductForm(addProductForm));
+            const product = await storage.addProduct(readProductForm(addProductForm));
             productList.innerHTML = renderAdminProductRows();
             addProductForm.reset();
             refreshUI();
@@ -818,14 +828,20 @@ export function showAdminModal() {
             'Fjern produkt',
             `Vil du fjerne <strong>${escapeHtml(product.name)}</strong> fra menyen?`,
             'danger',
-            () => {
-                if (!storage.removeProduct(product.id)) {
-                    showToast('Produktet er brukt i historikk og kan ikke fjernes', 'warning');
-                } else {
-                    showToast(`${product.name} fjernet fra menyen`, 'success');
+            async () => {
+                try {
+                    const removed = await storage.removeProduct(product.id);
+                    if (!removed) {
+                        showToast('Produktet er brukt i historikk og kan ikke fjernes', 'warning');
+                    } else {
+                        showToast(`${product.name} fjernet fra menyen`, 'success');
+                    }
+                    refreshUI();
+                    showAdminModal();
+                } catch (error) {
+                    showToast(error.message || 'Kunne ikke fjerne produktet', 'error');
+                    showAdminModal();
                 }
-                refreshUI();
-                showAdminModal();
             },
             () => showAdminModal()
         );
@@ -849,11 +865,16 @@ export function showAdminModal() {
         closeModal();
     };
 
-    const handleSettingsSubmit = (e) => {
+    const handleSettingsSubmit = async (e) => {
         e.preventDefault();
         const formData = new FormData(settingsForm);
         const newSettings = { vippsNumber: formData.get('vippsNumber') || '' };
-        storage.saveSettings(newSettings).then(() => showToast('Innstillinger lagret', 'success')).catch(error => showToast(error.message, 'error'));
+        try {
+            await storage.saveSettings(newSettings);
+            showToast('Innstillinger lagret', 'success');
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
     };
 
     const handleExport = () => {
@@ -873,10 +894,10 @@ export function showAdminModal() {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
             try {
                 const data = JSON.parse(event.target.result);
-                storage.importAllData(data);
+                await storage.importAllData(data);
                 showToast('Data importert', 'success');
                 refreshUI();
                 closeModal();
@@ -893,11 +914,15 @@ export function showAdminModal() {
             'Slett ALL data',
             'Dette vil slette ALLE kunder, transaksjoner og innstillinger. Denne handlingen kan ikke angres.',
             'danger',
-            () => {
-                storage.clearAllData();
-                showToast('All data slettet', 'warning');
-                refreshUI();
-                closeModal();
+            async () => {
+                try {
+                    await storage.clearAllData();
+                    showToast('All data slettet', 'warning');
+                    refreshUI();
+                    closeModal();
+                } catch (error) {
+                    showToast(error.message || 'Kunne ikke slette data', 'error');
+                }
             }
         );
     };
