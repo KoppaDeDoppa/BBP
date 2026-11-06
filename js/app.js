@@ -4,7 +4,7 @@
  * BodenBar v1.4
  */
 
-import { storage, DEFAULT_PRODUCTS } from './modules/storage.js';
+import { storage } from './modules/storage.js';
 import {
     initElements,
     renderProducts,
@@ -29,7 +29,9 @@ async function initApp() {
     // Initialize DOM elements
     initElements();
 
-    // Render initial UI
+    // Authenticate before loading authoritative state.
+    await storage.init();
+    if (!storage.user) { showLogin(); return; }
     renderProducts(handleProductClick);
     renderDashboard(storage.getDailyStats());
     renderCustomerLists();
@@ -39,6 +41,10 @@ async function initApp() {
     // Set up event listeners
     setupEventListeners();
 
+    applyRoleUI();
+    window.addEventListener('focus', refreshFromServer);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshFromServer(); });
+    setInterval(refreshFromServer, 5000);
     // Start clock
     updateClock();
     setInterval(updateClock, 1000);
@@ -47,6 +53,25 @@ async function initApp() {
     setInterval(() => storage.checkDailyReset(), 60000);
 
     console.log('BodenBar v1.4 initialized');
+}
+
+function showLogin() {
+    const c = document.getElementById('modals-container');
+    c.innerHTML = '<form id="login-form"><h2>Logg inn</h2><label>Brukernavn<input name="username" autocomplete="username" required></label><label>Passord<input name="password" type="password" autocomplete="current-password" required></label><button>Logg inn</button><p id="login-error" role="alert"></p></form>';
+    c.setAttribute('aria-hidden','false');
+    c.querySelector('form').onsubmit = async e => { e.preventDefault(); const f = new FormData(e.currentTarget); try { await storage.login(f.get('username'), f.get('password')); c.innerHTML=''; initElements(); initApp(); } catch(err) { c.querySelector('#login-error').textContent=err.message; } };
+}
+function applyRoleUI() {
+    const admin = storage.isAdmin();
+    document.getElementById('admin-btn').hidden = !admin;
+    document.getElementById('logout-btn').hidden = false;
+    document.getElementById('current-user').textContent = storage.user?.username || storage.user?.name || '';
+    if (!admin) { document.getElementById('reports-btn').hidden=true; document.getElementById('settlement-btn').hidden=true; }
+    document.getElementById('logout-btn').onclick = async () => { await storage.logout(); location.reload(); };
+}
+async function refreshFromServer() {
+    try { const result=await storage.loadState(storage.revision); if (!result.unchanged) { renderProducts(handleProductClick); renderDashboard(storage.getDailyStats()); renderCustomerLists(); const id=getActiveCustomerId(); if(id) renderActiveCustomer(storage.getCustomer(id)); } }
+    catch(error) { if (error.message.includes('401')) { storage.user=null; showLogin(); } }
 }
 
 // Event Listeners Setup
@@ -87,7 +112,7 @@ function setupEventListeners() {
 
     // Modal close buttons (delegated)
     el.getElementById('modals-container')?.addEventListener('click', (e) => {
-        if (e.target.closest('.modal-close') || e.target.classList.contains('modal-overlay')) {
+        if (e.target.closest('[aria-label="Lukk"]') || e.target === e.currentTarget) {
             closeModal();
         }
     });
@@ -118,7 +143,7 @@ function renderCustomerLists() {
 }
 
 // Product Click Handler
-function handleProductClick(productId, price) {
+async function handleProductClick(productId) {
     if (!getActiveCustomerId()) {
         showToast('Velg en kunde først', 'warning');
         return;
@@ -130,22 +155,23 @@ function handleProductClick(productId, price) {
         return;
     }
 
-    const product = DEFAULT_PRODUCTS.find(p => p.id === productId);
-    if (!product) return;
+    const product = storage.getProduct(productId);
+    if (!product) {
+        showToast('Produktet finnes ikke lenger', 'error');
+        return;
+    }
+    const currentPrice = product.price;
 
     // Add transaction
-    const transaction = storage.addTransaction({
+    try {
+    await storage.addTransaction({
         customerId: getActiveCustomerId(),
         type: 'purchase',
         productId: productId,
         productName: product.name,
-        amount: price,
-        price: price
+        amount: currentPrice,
+        price: currentPrice
     });
-
-    // Update customer balance
-    const newBalance = customer.balance + price;
-    storage.updateCustomer(getActiveCustomerId(), { balance: newBalance });
 
     // Update UI
     renderActiveCustomer(storage.getCustomer(getActiveCustomerId()));
@@ -153,6 +179,7 @@ function handleProductClick(productId, price) {
     renderDashboard(storage.getDailyStats());
 
     showToast(`${product.name} lagt til for ${customer.name}`, 'success');
+    } catch (error) { showToast(error.message, 'error'); }
 }
 
 // Select Customer
@@ -264,7 +291,7 @@ function handleCorrectPurchase() {
         storage.correctTransaction(oldTransaction.id, {
             amount: newAmount,
             productId: newProductId,
-            productName: DEFAULT_PRODUCTS.find(p => p.id === newProductId)?.name || 'Ukjent'
+            productName: storage.getProduct(newProductId)?.name || 'Ukjent'
         });
 
         // Update customer balance
@@ -288,6 +315,7 @@ function handleShowHistory() {
 
 // Refresh all UI
 function refreshUI() {
+    renderProducts(handleProductClick);
     renderDashboard(storage.getDailyStats());
     renderCustomerLists();
     if (getActiveCustomerId()) {

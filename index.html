@@ -7,74 +7,69 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>BodenBar</title>
     <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/products.css">
-    <link rel="stylesheet" href="css/customers.css">
-    <link rel="stylesheet" href="css/settlement.css">
-    <link rel="stylesheet" href="css/reports.css">
-    <link rel="stylesheet" href="css/admin.css">
-    <link rel="stylesheet" href="css/modals.css">
+    <title>BodenBar</title>
 </head>
 <body>
-    <div class="app-container">
+    <div id="app-container">
         <!-- Header with Logo Watermark -->
-        <header class="app-header">
-            <div class="logo-watermark" aria-hidden="true">BodenBar</div>
-            <h1 class="app-title">BodenBar</h1>
-            <div class="header-actions">
-                <button id="admin-btn" class="btn-icon" aria-label="Admin panel">
+        <header id="app-header">
+            <div id="logo-watermark" aria-hidden="true">BodenBar</div>
+            <h1 id="app-title">BodenBar</h1>
+            <div id="header-actions">
+                <button id="admin-btn" aria-label="Admin panel">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"></circle>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
                 </button>
-                <span id="current-time" class="current-time"></span>
+                <span id="current-time"></span>
+                <span id="current-user"></span>
+                <button id="logout-btn" hidden>Logg ut</button>
             </div>
         </header>
 
         <!-- Main Content Grid -->
-        <main class="main-grid">
+        <main id="main-grid">
             <!-- Left Panel: Products -->
-            <section class="panel products-panel" aria-labelledby="products-heading">
-                <h2 id="products-heading" class="panel-title">Produkter</h2>
-                <div id="products-grid" class="products-grid" role="list">
+            <section id="products-panel" aria-labelledby="products-heading">
+                <h2 id="products-heading">Produkter</h2>
+                <div id="products-grid" role="list">
                     <!-- Products rendered by JS -->
                 </div>
             </section>
 
             <!-- Center Panel: Dashboard Stats + Customer List -->
-            <section class="panel dashboard-panel" aria-labelledby="dashboard-heading">
-                <div class="dashboard-content">
+            <section id="dashboard-panel" aria-labelledby="dashboard-heading">
+                <div id="dashboard-content">
                     <!-- Dashboard Stats Column -->
-                    <div class="dashboard-stats-col" aria-labelledby="dashboard-heading">
-                        <h2 id="dashboard-heading" class="panel-title">Dashboard</h2>
-                        <div class="dashboard-stats" role="list">
-                            <article class="stat-card" data-stat="revenue">
-                                <span class="stat-label">Omsatt i dag</span>
-                                <span id="stat-revenue" class="stat-value">0 kr</span>
+                    <div id="dashboard-stats-col" aria-labelledby="dashboard-heading">
+                        <h2 id="dashboard-heading">Dashboard</h2>
+                        <div id="dashboard-stats" role="list">
+                            <article data-stat="revenue">
+                                <span>Omsatt i dag</span>
+                                <span id="stat-revenue">0 kr</span>
                             </article>
-                            <article class="stat-card" data-stat="outstanding">
-                                <span class="stat-label">Utestående</span>
-                                <span id="stat-outstanding" class="stat-value">0 kr</span>
+                            <article data-stat="outstanding">
+                                <span>Utestående</span>
+                                <span id="stat-outstanding">0 kr</span>
                             </article>
-                            <article class="stat-card" data-stat="paid">
-                                <span class="stat-label">Betalt</span>
-                                <span id="stat-paid" class="stat-value">0 kr</span>
+                            <article data-stat="paid">
+                                <span>Betalt</span>
+                                <span id="stat-paid">0 kr</span>
                             </article>
-                            <article class="stat-card" data-stat="customers">
-                                <span class="stat-label">Aktive kunder</span>
-                                <span id="stat-customers" class="stat-value">0</span>
+                            <article data-stat="customers">
+                                <span>Aktive kunder</span>
+                                <span id="stat-customers">0</span>
                             </article>
                         </div>
                     </div>
 
                     <!-- Customer List Column -->
-                    <div class="customer-list-col" aria-labelledby="customer-list-heading">
-                        <div class="panel-header">
-                            <h2 id="customer-list-heading" class="panel-title">Kunder</h2>
-                            <button id="add-customer-btn" class="btn-primary btn-sm" aria-label="Legg til ny kunde">
+                    <div id="customer-list-col" aria-labelledby="customer-list-heading">
+                        <div id="customer-panel-header">
+                            <h2 id="customer-list-heading">Kunder</h2>
+                            <button id="add-customer-btn" aria-label="Legg til ny kunde">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
                                     <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -83,62 +78,62 @@
                             </button>
                         </div>
 
-                        <div class="customer-list-wrapper" role="list">
-                            <ul id="active-customer-list" class="customer-list" role="list"></ul>
-                            <ul id="paid-customer-list" class="customer-list hidden" role="list"></ul>
-                            <ul id="archived-customer-list" class="customer-list hidden" role="list"></ul>
+                        <div id="customer-list-wrapper" role="list">
+                            <ul id="active-customer-list" role="list"></ul>
+                            <ul id="paid-customer-list" role="list" hidden></ul>
+                            <ul id="archived-customer-list" role="list" hidden></ul>
                         </div>
                     </div>
                 </div>
             </section>
 
             <!-- Right Panel: Active Customer Display -->
-            <section class="panel customer-panel" aria-labelledby="customer-heading">
-                <div class="panel-header">
-                    <h2 id="customer-heading" class="panel-title">Aktiv kunde</h2>
+            <section id="customer-panel" aria-labelledby="customer-heading">
+                <div id="customer-panel-header-right">
+                    <h2 id="customer-heading">Aktiv kunde</h2>
                 </div>
 
                 <!-- Active Customer Display -->
-                <div id="active-customer-display" class="active-customer-display">
-                    <div class="no-customer-selected">
-                        <svg class="icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <div id="active-customer-display">
+                    <div id="no-customer-selected">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 64px; height: 64px;">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
                         </svg>
                         <p>Ingen kunde valgt</p>
-                        <span class="hint">Velg en kunde fra listen</span>
+                        <span>Velg en kunde fra listen</span>
                     </div>
-                    <div id="customer-details" class="customer-details hidden">
-                        <div class="customer-info">
-                            <h3 id="customer-name" class="customer-name"></h3>
-                            <span id="customer-status" class="status-badge"></span>
+                    <div id="customer-details" hidden>
+                        <div id="customer-info">
+                            <h3 id="customer-name"></h3>
+                            <span id="customer-status"></span>
                         </div>
-                        <div class="customer-stats">
-                            <div class="stat-item">
-                                <span class="stat-item-label">Siste kjøp</span>
-                                <span id="last-purchase" class="stat-item-value">–</span>
+                        <div id="customer-stats">
+                            <div>
+                                <span>Siste kjøp</span>
+                                <span id="last-purchase">–</span>
                             </div>
-                            <div class="stat-item">
-                                <span class="stat-item-label">Saldo</span>
-                                <span id="customer-balance" class="stat-item-value balance">0 kr</span>
+                            <div>
+                                <span>Saldo</span>
+                                <span id="customer-balance">0 kr</span>
                             </div>
                         </div>
-                        <div class="customer-actions">
-                            <button id="undo-btn" class="btn-secondary btn-sm" aria-label="Angre siste kjøp" disabled>
+                        <div id="customer-actions">
+                            <button id="undo-btn" aria-label="Angre siste kjøp" disabled>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M3 7v6h6"></path>
                                     <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
                                 </svg>
                                 Angre siste
                             </button>
-                            <button id="correct-btn" class="btn-secondary btn-sm" aria-label="Korriger kjøp">
+                            <button id="correct-btn" aria-label="Korriger kjøp">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                 </svg>
                                 Korriger
                             </button>
-                            <button id="history-btn" class="btn-secondary btn-sm" aria-label="Vis historikk">
+                            <button id="history-btn" aria-label="Vis historikk">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <polyline points="12 6 12 12 16 14"></polyline>
@@ -150,21 +145,21 @@
                 </div>
 
                 <!-- Filter Tabs at bottom of Active Customer panel -->
-                <div class="customer-list-section" aria-labelledby="customer-filter-heading">
-                    <h3 id="customer-filter-heading" class="visually-hidden">Filtrer kunder</h3>
-                    <div class="list-tabs" role="tablist" aria-label="Kundefilter">
-                        <button id="tab-active" class="tab-btn active" role="tab" aria-selected="true" aria-controls="active-customers">Aktive</button>
-                        <button id="tab-paid" class="tab-btn" role="tab" aria-selected="false" aria-controls="paid-customers">Betalt</button>
-                        <button id="tab-archived" class="tab-btn" role="tab" aria-selected="false" aria-controls="archived-customers">Arkiverte</button>
+                <div id="customer-list-section" aria-labelledby="customer-filter-heading">
+                    <h3 id="customer-filter-heading" hidden>Filtrer kunder</h3>
+                    <div id="list-tabs" role="tablist" aria-label="Kundefilter">
+                        <button id="tab-active" role="tab" aria-selected="true" aria-controls="active-customers">Aktive</button>
+                        <button id="tab-paid" role="tab" aria-selected="false" aria-controls="paid-customers">Betalt</button>
+                        <button id="tab-archived" role="tab" aria-selected="false" aria-controls="archived-customers">Arkiverte</button>
                     </div>
                 </div>
             </section>
         </main>
 
         <!-- Bottom Action Bar -->
-        <footer class="action-bar" role="toolbar">
-            <div class="action-group">
-                <button id="settlement-btn" class="btn-primary btn-lg" aria-label="Gå til oppgjør">
+        <footer id="action-bar" role="toolbar">
+            <div id="action-group">
+                <button id="settlement-btn" aria-label="Gå til oppgjør">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="20" x2="12" y2="10"></line>
                         <line x1="18" y1="20" x2="18" y2="4"></line>
@@ -173,7 +168,7 @@
                     </svg>
                     Oppgjør
                 </button>
-                <button id="reports-btn" class="btn-secondary btn-lg" aria-label="Gå til rapporter">
+                <button id="reports-btn" aria-label="Gå til rapporter">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
@@ -188,7 +183,7 @@
     </div>
 
     <!-- Modals -->
-    <div id="modals-container"></div>
+    <div id="modals-container" aria-hidden="true"></div>
 
     <!-- Scripts -->
     <script type="module" src="js/app.js"></script>

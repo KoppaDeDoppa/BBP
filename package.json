@@ -1,0 +1,27 @@
+{
+  "name": "bodenbar-kunder",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KoppaDeDoppa/BBP.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/KoppaDeDoppa/BBP/issues"
+  },
+  "homepage": "https://github.com/KoppaDeDoppa/BBP#readme",
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.0"
+  }
+}
