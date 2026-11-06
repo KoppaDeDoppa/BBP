@@ -81,6 +81,30 @@ function setupEventListeners() {
     // Header
     el.getElementById('admin-btn')?.addEventListener('click', () => showAdminModal());
 
+    const fullscreenButton = el.getElementById('fullscreen-btn');
+    if (fullscreenButton) {
+        const syncFullscreenButton = () => {
+            const active = Boolean(document.fullscreenElement);
+            fullscreenButton.setAttribute('aria-pressed', String(active));
+            fullscreenButton.setAttribute('aria-label', active ? 'Avslutt fullskjerm' : 'Fullskjerm');
+            fullscreenButton.title = active ? 'Avslutt fullskjerm' : 'Fullskjerm';
+            fullscreenButton.innerHTML = active
+                ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3m13-5h-3a2 2 0 0 0-2 2v3"></path></svg>'
+                : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>';
+        };
+        if (!document.documentElement.requestFullscreen) fullscreenButton.hidden = true;
+        fullscreenButton.addEventListener('click', async () => {
+            try {
+                if (document.fullscreenElement) await document.exitFullscreen();
+                else await document.documentElement.requestFullscreen();
+            } catch {
+                showToast('Fullskjerm støttes ikke i denne nettleseren', 'warning');
+            }
+        });
+        document.addEventListener('fullscreenchange', syncFullscreenButton);
+        syncFullscreenButton();
+    }
+
     // Add Customer
     el.getElementById('add-customer-btn')?.addEventListener('click', () => showCustomerModal());
 
