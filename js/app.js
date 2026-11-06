@@ -23,6 +23,46 @@ import { getActiveCustomerId, setActiveCustomerId, clearActiveCustomerId } from 
 
 // Application State
 let currentCustomerTab = 'active'; // 'active', 'paid', 'archived'
+let mobileView = 'customers'; // 'customers', 'products', 'details'
+const mobileBreakpoint = window.matchMedia('(max-width: 767px)');
+
+function syncMobileLayout() {
+    const isMobile = mobileBreakpoint.matches;
+    const panelsByView = {
+        customers: 'dashboard-panel',
+        products: 'products-panel',
+        details: 'customer-panel'
+    };
+    const visiblePanelId = panelsByView[mobileView];
+
+    Object.values(panelsByView).forEach(panelId => {
+        const panel = document.getElementById(panelId);
+        if (panel) panel.hidden = isMobile && panelId !== visiblePanelId;
+    });
+
+    const nav = document.getElementById('mobile-pos-nav');
+    if (nav) nav.hidden = !isMobile;
+
+    document.querySelectorAll('[data-mobile-view]').forEach(button => {
+        if (button.dataset.mobileView === mobileView) button.setAttribute('aria-current', 'step');
+        else button.removeAttribute('aria-current');
+    });
+}
+
+function setMobileView(view, focusHeading = false) {
+    if (!['customers', 'products', 'details'].includes(view)) return;
+    mobileView = view;
+    syncMobileLayout();
+
+    if (focusHeading && mobileBreakpoint.matches) {
+        const headings = {
+            customers: 'customer-list-heading',
+            products: 'products-heading',
+            details: 'customer-heading'
+        };
+        document.getElementById(headings[view])?.focus({ preventScroll: true });
+    }
+}
 
 // Initialize App
 async function initApp() {
@@ -40,6 +80,8 @@ async function initApp() {
 
     // Set up event listeners
     setupEventListeners();
+    mobileBreakpoint.onchange = syncMobileLayout;
+    syncMobileLayout();
 
     applyRoleUI();
     window.addEventListener('focus', refreshFromServer);
@@ -59,7 +101,7 @@ function showLogin() {
     const c = document.getElementById('modals-container');
     c.innerHTML = '<form id="login-form"><h2>Logg inn</h2><label>Brukernavn<input name="username" autocomplete="username" required></label><label>Passord<input name="password" type="password" autocomplete="current-password" required></label><button>Logg inn</button><p id="login-error" role="alert"></p></form>';
     c.setAttribute('aria-hidden','false');
-    c.querySelector('form').onsubmit = async e => { e.preventDefault(); const f = new FormData(e.currentTarget); try { await storage.login(f.get('username'), f.get('password')); c.innerHTML=''; initElements(); initApp(); } catch(err) { c.querySelector('#login-error').textContent=err.message; } };
+    c.querySelector('form').onsubmit = async e => { e.preventDefault(); const f = new FormData(e.currentTarget); try { await storage.login(f.get('username'), f.get('password')); c.innerHTML=''; c.setAttribute('aria-hidden','true'); initElements(); initApp(); } catch(err) { c.querySelector('#login-error').textContent=err.message; } };
 }
 function applyRoleUI() {
     const admin = storage.isAdmin();
@@ -105,6 +147,21 @@ function setupEventListeners() {
         syncFullscreenButton();
     }
 
+    // Phone navigation
+    el.getElementById('mobile-pos-nav')?.addEventListener('click', event => {
+        const button = event.target.closest('[data-mobile-view]');
+        if (!button) return;
+
+        const view = button.dataset.mobileView;
+        if (view === 'products' && !getActiveCustomerId()) {
+            showToast('Velg en kunde først', 'warning');
+            setMobileView('customers', true);
+            return;
+        }
+
+        setMobileView(view, true);
+    });
+
     // Add Customer
     el.getElementById('add-customer-btn')?.addEventListener('click', () => showCustomerModal());
 
@@ -113,21 +170,13 @@ function setupEventListeners() {
     el.getElementById('correct-btn')?.addEventListener('click', handleCorrectPurchase);
     el.getElementById('history-btn')?.addEventListener('click', handleShowHistory);
 
-    // Customer List Tabs
-    el.getElementById('tab-active')?.addEventListener('click', () => {
-        currentCustomerTab = 'active';
-        switchCustomerTab('active');
-        renderCustomerLists();
-    });
-    el.getElementById('tab-paid')?.addEventListener('click', () => {
-        currentCustomerTab = 'paid';
-        switchCustomerTab('paid');
-        renderCustomerLists();
-    });
-    el.getElementById('tab-archived')?.addEventListener('click', () => {
-        currentCustomerTab = 'archived';
-        switchCustomerTab('archived');
-        renderCustomerLists();
+    // Customer list filters (desktop and mobile controls share one state)
+    el.querySelectorAll('[data-customer-tab]').forEach(button => {
+        button.addEventListener('click', () => {
+            currentCustomerTab = button.dataset.customerTab;
+            switchCustomerTab(currentCustomerTab);
+            renderCustomerLists();
+        });
     });
 
     // Action Bar
@@ -164,12 +213,14 @@ function renderCustomerLists() {
         showArchived,
         showPaid
     );
+    switchCustomerTab(currentCustomerTab);
 }
 
 // Product Click Handler
 async function handleProductClick(productId) {
     if (!getActiveCustomerId()) {
         showToast('Velg en kunde først', 'warning');
+        setMobileView('customers', true);
         return;
     }
 
@@ -212,6 +263,7 @@ function handleSelectCustomer(customerId) {
     const customer = storage.getCustomer(customerId);
     renderActiveCustomer(customer);
     renderCustomerLists();
+    setMobileView('products', true);
 }
 
 // Archive Customer
@@ -229,6 +281,7 @@ function handleArchiveCustomer(customerId) {
                 if (getActiveCustomerId() === customerId) {
                     setActiveCustomerId(null);
                     renderActiveCustomer(null);
+                    setMobileView('customers', true);
                 }
                 renderCustomerLists();
                 renderDashboard(storage.getDailyStats());
@@ -267,6 +320,7 @@ function handleDeleteCustomer(customerId) {
                 if (getActiveCustomerId() === customerId) {
                     setActiveCustomerId(null);
                     renderActiveCustomer(null);
+                    setMobileView('customers', true);
                 }
                 renderCustomerLists();
                 renderDashboard(storage.getDailyStats());
@@ -352,13 +406,14 @@ function handleShowHistory() {
 }
 
 // Refresh all UI
-function refreshUI() {
+function refreshUI(options = {}) {
     renderProducts(handleProductClick);
     renderDashboard(storage.getDailyStats());
     renderCustomerLists();
     if (getActiveCustomerId()) {
         renderActiveCustomer(storage.getCustomer(getActiveCustomerId()));
     }
+    if (options.mobileView) setMobileView(options.mobileView, true);
 }
 
 // Export functions for modals to use

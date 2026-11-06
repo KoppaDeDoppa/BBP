@@ -34,11 +34,22 @@
             </div>
         </header>
 
+        <nav id="mobile-pos-nav" aria-label="Kassesalg" hidden>
+            <button type="button" data-mobile-view="customers" aria-current="step">Kunder</button>
+            <button type="button" data-mobile-view="products">Produkter</button>
+            <button type="button" data-mobile-view="details">Aktiv kunde</button>
+        </nav>
+
         <!-- Main Content Grid -->
         <main id="main-grid">
             <!-- Left Panel: Products -->
             <section id="products-panel" aria-labelledby="products-heading">
-                <h2 id="products-heading">Produkter</h2>
+                <h2 id="products-heading" tabindex="-1">Produkter</h2>
+                <div id="mobile-customer-context" aria-live="polite">
+                    <span>Valgt kunde</span>
+                    <strong id="mobile-customer-name">Ingen kunde valgt</strong>
+                    <span id="mobile-customer-balance">Velg en kunde først</span>
+                </div>
                 <div id="products-grid" role="list">
                     <!-- Products rendered by JS -->
                 </div>
@@ -73,7 +84,7 @@
                     <!-- Customer List Column -->
                     <div id="customer-list-col" aria-labelledby="customer-list-heading">
                         <div id="customer-panel-header">
-                            <h2 id="customer-list-heading">Kunder</h2>
+                            <h2 id="customer-list-heading" tabindex="-1">Kunder</h2>
                             <button id="add-customer-btn" aria-label="Legg til ny kunde">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -83,6 +94,11 @@
                             </button>
                         </div>
 
+                        <div id="mobile-customer-filter-section" role="tablist" aria-label="Kundefilter">
+                            <button id="mobile-tab-active" type="button" role="tab" aria-selected="true" aria-controls="active-customer-list" data-customer-tab="active">Aktive</button>
+                            <button id="mobile-tab-paid" type="button" role="tab" aria-selected="false" aria-controls="paid-customer-list" data-customer-tab="paid">Betalt</button>
+                            <button id="mobile-tab-archived" type="button" role="tab" aria-selected="false" aria-controls="archived-customer-list" data-customer-tab="archived">Arkiverte</button>
+                        </div>
                         <div id="customer-list-wrapper" role="list">
                             <ul id="active-customer-list" role="list"></ul>
                             <ul id="paid-customer-list" role="list" hidden></ul>
@@ -95,7 +111,7 @@
             <!-- Right Panel: Active Customer Display -->
             <section id="customer-panel" aria-labelledby="customer-heading">
                 <div id="customer-panel-header-right">
-                    <h2 id="customer-heading">Aktiv kunde</h2>
+                    <h2 id="customer-heading" tabindex="-1">Aktiv kunde</h2>
                 </div>
 
                 <!-- Active Customer Display -->
@@ -153,9 +169,9 @@
                 <div id="customer-list-section" aria-labelledby="customer-filter-heading">
                     <h3 id="customer-filter-heading" hidden>Filtrer kunder</h3>
                     <div id="list-tabs" role="tablist" aria-label="Kundefilter">
-                        <button id="tab-active" role="tab" aria-selected="true" aria-controls="active-customers">Aktive</button>
-                        <button id="tab-paid" role="tab" aria-selected="false" aria-controls="paid-customers">Betalt</button>
-                        <button id="tab-archived" role="tab" aria-selected="false" aria-controls="archived-customers">Arkiverte</button>
+                        <button id="tab-active" role="tab" aria-selected="true" aria-controls="active-customer-list" data-customer-tab="active">Aktive</button>
+                        <button id="tab-paid" role="tab" aria-selected="false" aria-controls="paid-customer-list" data-customer-tab="paid">Betalt</button>
+                        <button id="tab-archived" role="tab" aria-selected="false" aria-controls="archived-customer-list" data-customer-tab="archived">Arkiverte</button>
                     </div>
                 </div>
             </section>

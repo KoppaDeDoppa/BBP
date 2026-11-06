@@ -212,7 +212,7 @@ export function showCustomerModal(customer = null) {
             }
             cleanup();
             closeModal();
-            refreshUI();
+            refreshUI({ mobileView: isEdit ? undefined : 'products' });
             showToast(`${name} ${isEdit ? 'oppdatert' : 'lagt til'}`, 'success');
         } catch (error) {
             showToast(error.message || 'Kunne ikke lagre kunden', 'error');
