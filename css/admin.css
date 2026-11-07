@@ -1,0 +1,240 @@
+/* ========================================
+   BodenBar - Admin Modal Styles
+   ======================================== */
+
+.admin-modal {
+    max-width: 500px;
+    width: 90vw;
+    background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+}
+
+.admin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-lg);
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--bg-glass-strong);
+    backdrop-filter: var(--glass-blur);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    margin: calc(-1 * var(--space-lg)) calc(-1 * var(--space-lg)) var(--space-lg);
+}
+
+.admin-header h2 {
+    font-size: var(--fs-xl);
+    background: linear-gradient(135deg, var(--neon-red), var(--neon-orange));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.admin-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.admin-section {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+}
+
+.admin-section-title {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-md);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.admin-section-title::before {
+    content: '';
+    width: 3px;
+    height: 16px;
+    background: var(--neon-red);
+    border-radius: var(--radius-full);
+}
+
+/* Password Form */
+.password-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.password-input-wrapper {
+    position: relative;
+}
+
+.password-input {
+    width: 100%;
+    padding: var(--space-md) var(--space-lg);
+    padding-right: 52px;
+    font-family: var(--font-mono);
+    font-size: var(--fs-md);
+    font-weight: 500;
+    color: var(--color-text);
+    background: var(--bg-primary);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    letter-spacing: 0.1em;
+}
+
+.password-input:focus {
+    outline: none;
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 0 3px var(--neon-cyan-dim);
+}
+
+.password-input::placeholder {
+    color: var(--color-text-dim);
+    font-weight: 400;
+    letter-spacing: normal;
+}
+
+.password-toggle {
+    position: absolute;
+    right: var(--space-md);
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: var(--space-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition-fast);
+}
+
+.password-toggle:hover {
+    color: var(--color-text);
+}
+
+.password-hint {
+    font-size: var(--fs-xs);
+    color: var(--color-text-dim);
+    text-align: center;
+    font-family: var(--font-mono);
+}
+
+/* Admin Actions */
+.admin-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.admin-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    background: var(--bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: left;
+    width: 100%;
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-btn:hover {
+    border-color: var(--neon-red);
+    background: var(--bg-hover);
+    transform: translateX(4px);
+}
+
+.admin-btn.danger:hover {
+    background: var(--neon-red-dim);
+    border-color: var(--neon-red);
+    color: var(--neon-red);
+}
+
+.admin-btn:focus-visible {
+    outline: 2px solid var(--neon-red);
+    outline-offset: -2px;
+}
+
+.admin-btn-icon {
+    font-size: 20px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    flex-shrink: 0;
+}
+
+/* Danger Zone */
+.danger-zone {
+    border-color: var(--neon-red);
+    background: var(--neon-red-dim);
+}
+
+.danger-zone .admin-section-title::before {
+    background: var(--neon-red);
+}
+
+.danger-zone .admin-btn {
+    border-color: var(--neon-red);
+    color: var(--neon-red);
+}
+
+.danger-zone .admin-btn:hover {
+    background: var(--neon-red);
+    color: var(--bg-primary);
+}
+
+/* Confirmation Dialog Override for Admin */
+.admin-confirm-modal {
+    max-width: 420px;
+}
+
+.admin-confirm-icon {
+    font-size: 48px;
+    color: var(--neon-red);
+    text-align: center;
+    margin-bottom: var(--space-md);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.admin-confirm-text {
+    text-align: center;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-lg);
+    line-height: 1.6;
+}
+
+.admin-confirm-text strong {
+    color: var(--color-text);
+}
+
+.admin-confirm-actions {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: center;
+}
+
+.admin-confirm-actions .btn {
+    min-width: 120px;
+}
