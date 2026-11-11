@@ -9,7 +9,34 @@ export function updateClock(){if(elements.currentTime)elements.currentTime.textC
 export function renderProducts(onClick){if(elements.productsGrid)elements.productsGrid.innerHTML=storage.getProducts().map(p=>`<button data-product="${p.id}" data-price="${p.price}"><span>${p.icon}</span><div>${p.name}<br>${p.price===0?'Gratis':formatCurrency(p.price)}</div>${p.member?'<span>Medlem</span>':''}</button>`).join('');elements.productsGrid?.querySelectorAll('[data-product]').forEach(b=>b.onclick=()=>onClick(b.dataset.product));}
 export function renderDashboard(s={}){[['statRevenue',s.revenue],['statPaid',s.paid],['statOutstanding',s.outstanding],['statCustomers',s.activeCustomers]].forEach(([k,v])=>{if(elements[k])elements[k].textContent=k==='statCustomers'?(v||0):formatCurrency(v);});}
 export function renderActiveCustomer(c){if(!elements.customerDetails)return;const none=document.getElementById('no-customer-selected');const mobileName=document.getElementById('mobile-customer-name');const mobileBalance=document.getElementById('mobile-customer-balance');if(mobileName)mobileName.textContent=c?.name||'Ingen kunde valgt';if(mobileBalance)mobileBalance.textContent=c?formatCurrency(c.balance):'Velg en kunde først';if(!c){if(none)none.hidden=false;elements.customerDetails.hidden=true;return;}if(none)none.hidden=true;elements.customerDetails.hidden=false;elements.customerName.textContent=c.name;elements.customerBalance.textContent=formatCurrency(c.balance);const t=storage.getCustomerTransactions(c.id);elements.lastPurchase.textContent=t[0]?formatDateTime(t[0].timestamp):'–';elements.customerStatus.textContent=c.archived?'Arkivert':c.balance>0?'Utestående':storage.hasMadePayment(c.id)?'Betalt':'Aktiv';elements.undoBtn.disabled=!t.length;elements.correctBtn.disabled=!t.length;elements.historyBtn.disabled=false;}
-export function renderCustomerList(cs,active,onSelect,onArchive,onUnarchive,onDelete,archived=false,paid=false){const list=archived?elements.archivedCustomerList:paid?elements.paidCustomerList:elements.activeCustomerList;const filtered=cs.filter(c=>archived?c.archived:paid?!c.archived&&c.balance===0&&storage.hasMadePayment(c.id):!c.archived&&(c.balance!==0||!storage.hasMadePayment(c.id)));list.innerHTML=filtered.map(c=>`<li data-customer-id="${c.id}" aria-selected="${c.id===active}"><div><span>${escapeHtml(c.name)}</span><span>${formatCurrency(c.balance)}</span></div><div><button type="button" data-action="${archived?'unarchive':'archive'}" aria-label="${archived?'Gjenopprett':'Arkiver'} kunde">${archived?'Gjenopprett':'Arkiver'}</button><button type="button" data-action="delete" aria-label="Slett kunde">Slett</button></div></li>`).join('')||'<li>Ingen kunder</li>';list.querySelectorAll('[data-customer-id]').forEach(li=>{li.onclick=e=>{const id=li.dataset.customerId;if(e.target.dataset.action==='delete')onDelete(id);else if(e.target.dataset.action==='archive')onArchive(id);else if(e.target.dataset.action==='unarchive')onUnarchive(id);else onSelect(id);};});}
+function customerItemCounts() {
+    const customers = new Map();
+    const products = new Map(storage.getProducts().map(p => [p.id, p]));
+    for (const transaction of storage.getTransactions()) {
+        if (transaction.type !== 'purchase') continue;
+        const items = customers.get(transaction.customerId) || new Map();
+        customers.set(transaction.customerId, items);
+        const key = transaction.productId || transaction.productName;
+        const product = products.get(transaction.productId);
+        const item = items.get(key) || {
+            name: product?.name || transaction.productName || 'Ukjent produkt',
+            icon: product?.icon || '',
+            member: product?.member || false,
+            count: 0
+        };
+        item.count += 1;
+        items.set(key, item);
+    }
+    return customers;
+}
+function renderItemCounts(items) {
+    if (!items?.size) return '';
+    return `<small class="customer-item-counts">${Array.from(items.values(), item => {
+        const label = `${item.name}: ${item.count}`;
+        return `<span class="customer-item-count" title="${escapeHtml(label).replace(/"/g, '&quot;')}" aria-label="${escapeHtml(label).replace(/"/g, '&quot;')}">${escapeHtml(item.icon || item.name)}${item.member && item.icon ? ' (M)' : ''} ×${item.count}</span>`;
+    }).join('')}</small>`;
+}
+export function renderCustomerList(cs,active,onSelect,onArchive,onUnarchive,onDelete,archived=false,paid=false){const counts=customerItemCounts();const list=archived?elements.archivedCustomerList:paid?elements.paidCustomerList:elements.activeCustomerList;const filtered=cs.filter(c=>archived?c.archived:paid?!c.archived&&c.balance===0&&storage.hasMadePayment(c.id):!c.archived&&(c.balance!==0||!storage.hasMadePayment(c.id)));list.innerHTML=filtered.map(c=>`<li data-customer-id="${c.id}" aria-selected="${c.id===active}"><div><div class="customer-name-line"><span class="customer-list-name">${escapeHtml(c.name)}</span>${renderItemCounts(counts.get(c.id))}</div><span class="customer-list-balance">${formatCurrency(c.balance)}</span></div><div><button type="button" data-action="${archived?'unarchive':'archive'}" aria-label="${archived?'Gjenopprett':'Arkiver'} kunde">${archived?'Gjenopprett':'Arkiver'}</button><button type="button" data-action="delete" aria-label="Slett kunde">Slett</button></div></li>`).join('')||'<li>Ingen kunder</li>';list.querySelectorAll('[data-customer-id]').forEach(li=>{li.onclick=e=>{const id=li.dataset.customerId;if(e.target.dataset.action==='delete')onDelete(id);else if(e.target.dataset.action==='archive')onArchive(id);else if(e.target.dataset.action==='unarchive')onUnarchive(id);else onSelect(id);};});}
 export function switchCustomerTab(t){const l={active:elements.activeCustomerList,paid:elements.paidCustomerList,archived:elements.archivedCustomerList};Object.entries(l).forEach(([k,v])=>{v.hidden=k!==t;});document.querySelectorAll('[data-customer-tab]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.customerTab===t)));}
 function escapeHtml(x){const d=document.createElement('div');d.textContent=x;return d.innerHTML;}
 export function showToast(message,type='info',duration=3000){let c=document.getElementById('toast-container');if(!c){c=document.createElement('div');c.id='toast-container';document.body.append(c);}const d=document.createElement('div');d.textContent=message;d.setAttribute('role','alert');c.append(d);setTimeout(()=>d.remove(),duration);}
