@@ -19,7 +19,7 @@ function escapeHtml(value) {
 /**
  * Show a modal with custom content
  */
-export function showModal(content) {
+export function showModal(content, { focusForm = true } = {}) {
     const container = document.getElementById('modals-container');
     if (!container) return;
 
@@ -42,7 +42,7 @@ export function showModal(content) {
     const modalForFocus = currentModal;
     requestAnimationFrame(() => {
         if (!modalForFocus.isConnected) return;
-        const formField = modalForFocus.querySelector('input, select, textarea');
+        const formField = focusForm && modalForFocus.querySelector('input, select, textarea');
         if (formField) {
             formField.focus();
         } else {
@@ -766,7 +766,7 @@ export function showAdminModal() {
         </div>
     `;
 
-    showModal(content);
+    showModal(content, { focusForm: false });
 
     const closeBtn = currentModal.querySelector('[aria-label="Lukk"]');
     const closeFooterBtn = currentModal.querySelector('[data-modal-close]');
