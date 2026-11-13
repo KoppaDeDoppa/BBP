@@ -32,7 +32,8 @@ function validateProduct(input) {
     const icon = typeof input.icon === 'string' ? input.icon.trim().slice(0, 8) : '';
     const price = requireAmount(input.price, 'Prisen');
     if (input.member !== undefined && typeof input.member !== 'boolean') badRequest('Medlemsvalget er ugyldig.');
-    return { id, name, icon, price, member: input.member === true };
+    if (input.fat !== undefined && typeof input.fat !== 'boolean') badRequest('Fatvalget er ugyldig.');
+    return { id, name, icon, price, member: input.member === true, fat: input.fat === true };
 }
 
 function serializeSettings(db) {
@@ -235,16 +236,17 @@ function makeApi(db) {
 
     router.post('/products', ...adminOnly, (req, res) => {
         const product = validateProduct({ ...req.body, id: crypto.randomUUID() });
-        db.prepare('INSERT INTO products (id, name, price, icon, member) VALUES (?, ?, ?, ?, ?)')
-            .run(product.id, product.name, product.price, product.icon, Number(product.member));
+        db.prepare('INSERT INTO products (id, name, price, icon, member, fat) VALUES (?, ?, ?, ?, ?, ?)')
+            .run(product.id, product.name, product.price, product.icon, Number(product.member), Number(product.fat));
         bumpRevision(db);
         res.status(201).json(product);
     });
 
     router.put('/products/:id', ...adminOnly, (req, res) => {
-        const product = validateProduct({ ...req.body, id: req.params.id });
-        const result = db.prepare('UPDATE products SET name = ?, price = ?, icon = ?, member = ? WHERE id = ?')
-            .run(product.name, product.price, product.icon, Number(product.member), product.id);
+        const existing = db.prepare('SELECT fat FROM products WHERE id = ?').get(req.params.id);
+        const product = validateProduct({ fat: Boolean(existing?.fat), ...req.body, id: req.params.id });
+        const result = db.prepare('UPDATE products SET name = ?, price = ?, icon = ?, member = ?, fat = ? WHERE id = ?')
+            .run(product.name, product.price, product.icon, Number(product.member), Number(product.fat), product.id);
         if (!result.changes) return res.status(404).json({ error: 'Produktet finnes ikke.' });
         bumpRevision(db);
         res.json(product);
@@ -353,8 +355,8 @@ function makeApi(db) {
             db.prepare('DELETE FROM products').run();
             const addCustomer = db.prepare('INSERT INTO customers (id, name, balance, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
             customers.forEach(customer => addCustomer.run(customer.id, customer.name, customer.balance, Number(customer.archived), customer.createdAt, customer.updatedAt));
-            const addProduct = db.prepare('INSERT INTO products (id, name, price, icon, member) VALUES (?, ?, ?, ?, ?)');
-            products.forEach(product => addProduct.run(product.id, product.name, product.price, product.icon, Number(product.member)));
+            const addProduct = db.prepare('INSERT INTO products (id, name, price, icon, member, fat) VALUES (?, ?, ?, ?, ?, ?)');
+            products.forEach(product => addProduct.run(product.id, product.name, product.price, product.icon, Number(product.member), Number(product.fat)));
             const addTransaction = db.prepare(`INSERT INTO transactions (id, customer_id, type, product_id, product_name, amount, price, timestamp, corrected, corrected_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             transactions.forEach(transaction => addTransaction.run(transaction.id, transaction.customerId, transaction.type, transaction.productId, transaction.productName, transaction.amount, transaction.price, transaction.timestamp, Number(transaction.corrected), transaction.correctedAt));
@@ -370,8 +372,8 @@ function makeApi(db) {
         const clear = db.transaction(() => {
             db.prepare('DELETE FROM customers').run();
             db.prepare('DELETE FROM products').run();
-            const insert = db.prepare('INSERT INTO products (id, name, price, icon, member) VALUES (?, ?, ?, ?, ?)');
-            DEFAULT_PRODUCTS.forEach(product => insert.run(product.id, product.name, product.price, product.icon, Number(product.member)));
+            const insert = db.prepare('INSERT INTO products (id, name, price, icon, member, fat) VALUES (?, ?, ?, ?, ?, ?)');
+            DEFAULT_PRODUCTS.forEach(product => insert.run(product.id, product.name, product.price, product.icon, Number(product.member), Number(product.fat)));
             db.prepare('DELETE FROM settings').run();
             Object.entries(DEFAULT_SETTINGS).forEach(([key, value]) => db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run(key, JSON.stringify(value)));
         });

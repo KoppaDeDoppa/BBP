@@ -593,7 +593,7 @@ export function showCorrectionModal(customerId, transaction, onConfirm) {
                 <select id="correction-product" name="productId" required>
                     ${storage.getProducts().map(p => `
                         <option value="${escapeHtml(p.id)}" ${p.id === transaction.productId ? 'selected' : ''}>
-                            ${escapeHtml(p.name)} ${p.price === 0 ? '(Gratis)' : `- ${formatCurrency(p.price)}`}${p.member ? ' [Medlem]' : ''}
+                            ${escapeHtml(p.name)} ${p.price === 0 ? '(Gratis)' : `- ${formatCurrency(p.price)}`}${p.member ? ' [Medlem]' : ''}${p.fat ? ' [Fat]' : ''}
                         </option>
                     `).join('')}
                 </select>
@@ -618,9 +618,6 @@ export function showCorrectionModal(customerId, transaction, onConfirm) {
     const closeBtn = currentModal.querySelector('[aria-label="Lukk"]');
     const productSelect = document.getElementById('correction-product');
     const amountInput = document.getElementById('correction-amount');
-
-    // Update amount when product changes
-    productSelect?.addEventListener('change', handleProductChange);
 
     const cleanup = () => {
         form?.removeEventListener('submit', handleSubmit);
@@ -659,6 +656,7 @@ export function showCorrectionModal(customerId, transaction, onConfirm) {
         closeModal();
     };
 
+    productSelect?.addEventListener('change', handleProductChange);
     form?.addEventListener('submit', handleSubmit);
     cancelBtn?.addEventListener('click', handleCancel);
     closeBtn?.addEventListener('click', handleCancel);
@@ -682,10 +680,16 @@ function renderAdminProductRows() {
                     </label>
                 </div>
                 <div class="admin-product-actions">
-                    <label class="admin-member-toggle">
-                        <input name="member" type="checkbox" ${product.member ? 'checked' : ''}>
-                        Medlemsprodukt
-                    </label>
+                    <div class="admin-product-toggles">
+                        <label class="admin-member-toggle">
+                            <input name="member" type="checkbox" ${product.member ? 'checked' : ''}>
+                            Medlemsprodukt
+                        </label>
+                        <label class="admin-member-toggle">
+                            <input name="fat" type="checkbox" ${product.fat ? 'checked' : ''}>
+                            Fat
+                        </label>
+                    </div>
                     <button type="submit">Lagre</button>
                     <button type="button" data-remove-product="${escapeHtml(product.id)}" ${hasHistory ? 'disabled title="Produktet er brukt i transaksjonshistorikk"' : ''}>Fjern</button>
                     ${hasHistory ? '<span class="admin-product-note">I bruk i historikk – kan ikke fjernes</span>' : ''}
@@ -725,7 +729,7 @@ export function showAdminModal() {
 
             <section class="admin-products-section" aria-labelledby="admin-products-heading">
                 <h4 id="admin-products-heading">Produktmeny</h4>
-                <p>Endre navn, pris og ikon på produktene som vises i kassen. Tidligere transaksjoner beholder sine lagrede detaljer.</p>
+                <p>Endre navn, pris og ikon på produktene som vises i kassen. Lag egne produkter for fat og boks. Endrer du Fat på et produkt som er brukt, endres også merkingen i kundenes varetelling.</p>
                 <div id="admin-product-list" aria-label="Produkter">${renderAdminProductRows()}</div>
                 <form id="admin-add-product-form" class="admin-add-product-form">
                     <h5>Legg til produkt</h5>
@@ -741,7 +745,10 @@ export function showAdminModal() {
                         </label>
                     </div>
                     <div class="admin-product-actions">
-                        <label class="admin-member-toggle"><input name="member" type="checkbox"> Medlemsprodukt</label>
+                        <div class="admin-product-toggles">
+                            <label class="admin-member-toggle"><input name="member" type="checkbox"> Medlemsprodukt</label>
+                            <label class="admin-member-toggle"><input name="fat" type="checkbox"> Fat</label>
+                        </div>
                         <button type="submit">Legg til produkt</button>
                     </div>
                 </form>
@@ -786,7 +793,8 @@ export function showAdminModal() {
             name: String(formData.get('name') || '').trim(),
             price: rawPrice === '' ? NaN : Number(rawPrice),
             icon: String(formData.get('icon') || '').trim(),
-            member: form.elements.member.checked
+            member: form.elements.member.checked,
+            fat: form.elements.fat.checked
         };
     };
 

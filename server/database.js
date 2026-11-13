@@ -3,11 +3,11 @@ const path = require('node:path');
 const Database = require('better-sqlite3');
 
 const DEFAULT_PRODUCTS = [
-    { id: 'beer', name: 'Øl', price: 50, icon: '🍺', member: false },
-    { id: 'whisky', name: 'Whisky', price: 100, icon: '🥃', member: false },
-    { id: 'fegisbubbler', name: 'Fegisbubbler', price: 25, icon: '🫧', member: false },
-    { id: 'beer-member', name: 'Øl til bryggerimedlem', price: 0, icon: '🍺', member: true },
-    { id: 'whisky-member', name: 'Whisky til bryggerimedlem', price: 0, icon: '🥃', member: true }
+    { id: 'beer', name: 'Øl', price: 50, icon: '🍺', member: false, fat: false },
+    { id: 'whisky', name: 'Whisky', price: 100, icon: '🥃', member: false, fat: false },
+    { id: 'fegisbubbler', name: 'Fegisbubbler', price: 25, icon: '🫧', member: false, fat: false },
+    { id: 'beer-member', name: 'Øl til bryggerimedlem', price: 0, icon: '🍺', member: true, fat: false },
+    { id: 'whisky-member', name: 'Whisky til bryggerimedlem', price: 0, icon: '🥃', member: true, fat: false }
 ];
 
 const DEFAULT_SETTINGS = { vippsNumber: '1234567890', theme: 'dark' };
@@ -47,7 +47,8 @@ function openDatabase(filename = process.env.DATABASE_PATH || './data/bodenbar.s
             name TEXT NOT NULL,
             price INTEGER NOT NULL CHECK (price >= 0),
             icon TEXT NOT NULL,
-            member INTEGER NOT NULL DEFAULT 0 CHECK (member IN (0, 1))
+            member INTEGER NOT NULL DEFAULT 0 CHECK (member IN (0, 1)),
+            fat INTEGER NOT NULL DEFAULT 0 CHECK (fat IN (0, 1))
         );
         CREATE TABLE IF NOT EXISTS transactions (
             sequence INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,11 +74,16 @@ function openDatabase(filename = process.env.DATABASE_PATH || './data/bodenbar.s
         );
     `);
 
+    // Upgrade existing Docker volumes as well as fresh databases.
+    if (!db.pragma('table_info(products)').some(column => column.name === 'fat')) {
+        db.exec('ALTER TABLE products ADD COLUMN fat INTEGER NOT NULL DEFAULT 0 CHECK (fat IN (0, 1))');
+    }
+
     const seed = db.transaction(() => {
         const productCount = db.prepare('SELECT COUNT(*) AS count FROM products').get().count;
         if (productCount === 0) {
-            const insert = db.prepare('INSERT INTO products (id, name, price, icon, member) VALUES (?, ?, ?, ?, ?)');
-            DEFAULT_PRODUCTS.forEach(product => insert.run(product.id, product.name, product.price, product.icon, Number(product.member)));
+            const insert = db.prepare('INSERT INTO products (id, name, price, icon, member, fat) VALUES (?, ?, ?, ?, ?, ?)');
+            DEFAULT_PRODUCTS.forEach(product => insert.run(product.id, product.name, product.price, product.icon, Number(product.member), Number(product.fat)));
         }
         const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
         Object.entries(DEFAULT_SETTINGS).forEach(([key, value]) => insertSetting.run(key, JSON.stringify(value)));
@@ -127,7 +133,7 @@ function getState(db, user) {
         productName: row.product_name, amount: row.amount, price: row.price, timestamp: row.timestamp,
         ...(row.corrected ? { corrected: true, correctedAt: row.corrected_at } : {})
     }));
-    const products = db.prepare('SELECT id, name, price, icon, member FROM products ORDER BY rowid').all().map(row => ({ ...row, member: Boolean(row.member) }));
+    const products = db.prepare('SELECT id, name, price, icon, member, fat FROM products ORDER BY rowid').all().map(row => ({ ...row, member: Boolean(row.member), fat: Boolean(row.fat) }));
     const today = currentDay();
     const todayTransactions = transactions.filter(transaction => localDay(transaction.timestamp) === today);
     const stats = { date: today, revenue: 0, paid: 0, outstanding: 0, transactionCount: todayTransactions.length, activeCustomers: 0 };

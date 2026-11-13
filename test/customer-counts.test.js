@@ -49,6 +49,29 @@ test('customer list counts purchases by product and follows order changes', asyn
         html = render();
         assert.match(html, /Saft &lt;stor&gt; ×2/);
         assert.doesNotMatch(html.split('data-customer-id="two"')[0], /🍺 ×/);
+        storage.state.products.push(
+            { id: 'beer-keg', name: 'Øl', icon: '🍺', fat: true },
+            { id: 'beer-keg-member', name: 'Øl', icon: '🍺', fat: true, member: true },
+            { id: 'juice-keg', name: 'Saft <stor>', icon: '', fat: true }
+        );
+        storage.state.transactions = [
+            { customerId: 'one', type: 'purchase', productId: 'beer' },
+            { customerId: 'one', type: 'purchase', productId: 'beer-keg' },
+            { customerId: 'one', type: 'purchase', productId: 'beer-keg' },
+            { customerId: 'one', type: 'purchase', productId: 'beer-keg-member' },
+            { customerId: 'one', type: 'purchase', productId: 'juice-keg' }
+        ];
+        html = render();
+        assert.match(html, /🍺 ×1/);
+        assert.match(html, /🍺 \(F\) ×2/);
+        assert.match(html, /🍺 \(F\) \(M\) ×1/);
+        assert.match(html, /Saft &lt;stor&gt; \(F\) ×1/);
+        assert.match(html, /aria-label="Øl \[Fat\] \[Medlem\]: 1"/);
+        assert.match(html, /title="Saft &lt;stor&gt; \[Fat\]: 1"/);
+        ui.renderProducts(() => {});
+        const products = elements.get('products-grid').innerHTML;
+        assert.match(products, /class="product-badge">Fat/);
+        assert.match(products, /class="product-badge">Medlem<\/span><span class="product-badge">Fat/);
         storage.state.transactions = [];
         assert.doesNotMatch(render(), /customer-item-counts/);
     } finally {
