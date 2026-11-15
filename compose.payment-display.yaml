@@ -1,0 +1,12 @@
+# Opt-in only: create this shared network before starting either project.
+services:
+  bodenbar:
+    networks:
+      - default
+      - payment-display
+
+networks:
+  default: {}
+  payment-display:
+    external: true
+    name: bodenbar-display

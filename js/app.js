@@ -169,6 +169,7 @@ function setupEventListeners() {
     el.getElementById('undo-btn')?.addEventListener('click', handleUndoLast);
     el.getElementById('correct-btn')?.addEventListener('click', handleCorrectPurchase);
     el.getElementById('history-btn')?.addEventListener('click', handleShowHistory);
+    el.getElementById('display-payment-btn')?.addEventListener('click', handleDisplayPayment);
 
     // Customer list filters (desktop and mobile controls share one state)
     el.querySelectorAll('[data-customer-tab]').forEach(button => {
@@ -394,6 +395,28 @@ function handleCorrectPurchase() {
             showToast(error.message || 'Kunne ikke korrigere kjøpet', 'error');
         }
     });
+}
+
+// The receiver acknowledgement is not proof of rendering or payment.
+async function handleDisplayPayment() {
+    const button = document.getElementById('display-payment-btn');
+    const customer = storage.getCustomer(getActiveCustomerId());
+    if (!button || button.disabled || !customer || customer.archived ||
+        !Number.isSafeInteger(customer.balance) || customer.balance <= 0) return;
+    button.dataset.pending = 'true';
+    setButtonLoading(button, true, 'Sender til TV...');
+    button.setAttribute('aria-busy', 'true');
+    try {
+        await storage.displayPayment(customer.id);
+        showToast('TV-mottakeren godtok forespørselen. Kontroller TV-en. Ingen betaling er registrert.', 'success', 6000);
+    } catch (error) {
+        showToast(error.message || 'Kunne ikke sende til TV-mottakeren', 'error');
+    } finally {
+        delete button.dataset.pending;
+        button.removeAttribute('aria-busy');
+        setButtonLoading(button, false);
+        renderActiveCustomer(storage.getCustomer(getActiveCustomerId()));
+    }
 }
 
 // Show History

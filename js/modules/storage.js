@@ -198,6 +198,12 @@ class Storage {
         await this.loadState(this.revision);
         return result.transaction || result;
     }
+    async displayPayment(customerId) {
+        return this.request('/display/payment', {
+            method: 'POST',
+            body: JSON.stringify({ customerId })
+        });
+    }
     async removeLastTransaction(customerId) {
         const result = await this.request(`/transactions/undo/${encodeURIComponent(customerId)}`, {
             method: 'POST'

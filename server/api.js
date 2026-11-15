@@ -40,7 +40,7 @@ function serializeSettings(db) {
     return getSettings(db);
 }
 
-function makeApi(db) {
+function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch } = {}) {
     const router = express.Router();
     const auth = requireAuth(db);
     const adminOnly = [auth, requireRole('admin')];
@@ -127,6 +127,53 @@ function makeApi(db) {
         const revision = getRevision(db);
         if (Number.isSafeInteger(since) && since === revision) return res.json({ revision, unchanged: true });
         res.json(getState(db, req.user));
+    });
+
+    // This only requests a display; it never settles or otherwise changes the account.
+    router.post('/display/payment', ...staffOrAdmin, async (req, res) => {
+        const input = req.body;
+        if (!input || typeof input !== 'object' || Array.isArray(input) ||
+            Object.keys(input).length !== 1 || !Object.hasOwn(input, 'customerId')) {
+            return res.status(400).json({ error: 'Kun customerId er tillatt.' });
+        }
+        const customerId = requireText(input.customerId, 'Kunde', 64);
+        const customer = db.prepare('SELECT balance, archived FROM customers WHERE id = ?').get(customerId);
+        if (!customer || customer.archived || !Number.isSafeInteger(customer.balance) || customer.balance <= 0) {
+            return res.status(400).json({ error: 'Velg en aktiv kunde med positiv saldo i hele kroner.' });
+        }
+
+        let origin;
+        const secret = env.PAYMENT_DISPLAY_SECRET;
+        try {
+            const configured = env.TAP_DISPLAY_URL;
+            const url = new URL(configured);
+            if (typeof configured !== 'string' || !/^https?:\/\/[^/?#\s]+\/?$/i.test(configured) ||
+                !['http:', 'https:'].includes(url.protocol) || url.username || url.password ||
+                url.pathname !== '/' || url.search || url.hash ||
+                typeof secret !== 'string' || secret.length < 32 || !/^[\x21-\x7e]+$/.test(secret)) throw new Error();
+            origin = url.origin;
+        } catch {
+            return res.status(503).json({ error: 'TV-visning er ikke konfigurert. Kontakt administrator.' });
+        }
+
+        const requestId = crypto.randomUUID();
+        try {
+            const upstream = await displayFetch(`${origin}/api/payment-display`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+                body: JSON.stringify({ amount: customer.balance, requestId, deadline: Date.now() + 5000 }),
+                redirect: 'error',
+                signal: AbortSignal.timeout(4000)
+            });
+            if (!upstream.ok) throw new Error();
+            const result = await upstream.json();
+            if (result?.accepted !== true || result.requestId !== requestId ||
+                !Number.isSafeInteger(result.expiresAt) || result.expiresAt <= Date.now()) throw new Error();
+            res.json({ accepted: true, requestId, expiresAt: result.expiresAt });
+        } catch {
+            // Do not log upstream errors: they may contain the configured URL or credentials.
+            res.status(502).json({ error: 'TV-mottakeren kunne ikke bekrefte forespørselen. Prøv igjen.' });
+        }
     });
 
     router.post('/customers', ...staffOrAdmin, (req, res) => {

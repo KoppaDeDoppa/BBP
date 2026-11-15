@@ -53,6 +53,10 @@ export function renderDashboard(s = {}) {
     });
 }
 export function renderActiveCustomer(c) {
+    const displayButton = document.getElementById('display-payment-btn');
+    if (displayButton) displayButton.disabled = displayButton.dataset.pending === 'true' ||
+        !['staff', 'admin'].includes(storage.getRole()) || !c || c.archived ||
+        !Number.isSafeInteger(c.balance) || c.balance <= 0;
     if (!elements.customerDetails) return;
     const none = document.getElementById('no-customer-selected');
     const mobileName = document.getElementById('mobile-customer-name');

@@ -20,6 +20,30 @@ Open `http://<raspberry-pi-lan-address>:3000` from a device on the same trusted 
 
 The image uses Node 22 and supports ARM64. Compose publishes only the app port and keeps the SQLite volume internal to Docker. Do not configure router port forwarding. Restrict access with the Wi-Fi/router firewall and use a trusted LAN: plain HTTP does not encrypt passwords, session cookies, or app data while they travel over the network. HTTPS reverse-proxy deployment needs additional trusted-proxy configuration; setting `COOKIE_SECURE=true` alone does not provide TLS.
 
+## Optional Vipps display on the TV
+
+Normal startup does not require TV configuration. Without it, only the TV action returns a controlled unavailable error; the POS remains usable.
+
+In the POS `.env`, set these server-only variables (never put them in browser JavaScript):
+
+```dotenv
+TAP_DISPLAY_URL=http://10.0.0.33:3005
+PAYMENT_DISPLAY_SECRET=<a-random-secret-at-least-32-characters>
+```
+
+Generate a secret, for example with `openssl rand -hex 32`, and configure the **same** `PAYMENT_DISPLAY_SECRET` on the TV receiver. Use a printable secret without whitespace. `TAP_DISPLAY_URL` must be a fixed HTTP(S) origin, with no credentials, path, query, or fragment. The LAN address above targets the TV host; `localhost` inside the POS container would target the POS itself. Restrict receiver access to the trusted LAN/firewall; HTTP transmits this bearer secret unencrypted. Recreate containers after changing environment variables.
+
+For two Compose projects on the **same Docker host**, an optional shared network avoids reliance on the host's LAN address. Configure `TAP_DISPLAY_URL=http://tap-display:3005`, enable the TV project's matching override (which gives its service the `tap-display` alias), then run:
+
+```bash
+docker network create bodenbar-display
+docker compose -f compose.yaml -f compose.payment-display.yaml up -d --build
+```
+
+Create the network once before either project starts. The override keeps the POS default network as well as attaching the external `bodenbar-display` network. Without this opt-in override, ordinary `docker compose up -d --build` is unchanged. Shared Docker networks do not connect separate physical hosts; use the LAN address in that case.
+
+Staff and admins can select a nonarchived customer with a positive whole-NOK balance and press **Vis Vipps på TV**. The POS reads the current balance from SQLite and sends only the amount and a fresh request ID/deadline to the receiver. The TV must have its own QR image configured; an unconfigured receiver may reject the request. An accepted request lasts 30 seconds from receiver acceptance. The success message confirms receiver acceptance only, not that a physical TV rendered it or that payment occurred. This action does not modify balances, transactions, or financial history; register verified payment separately using the existing workflow.
+
 ## Update and backup
 
 To update from a newer project checkout, rebuild the image while retaining the volume:
