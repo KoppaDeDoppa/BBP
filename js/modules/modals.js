@@ -755,6 +755,12 @@ export function showAdminModal() {
             </section>
 
             <div>
+                <h4>Salgsrapport</h4>
+                <p>Last ned en oversikt over salg og serveringer de siste 30 dagene, inkludert i dag.</p>
+                <button id="download-sales-report">Last ned salgsrapport (siste 30 dager)</button>
+            </div>
+
+            <div>
                 <h4>Data</h4>
                 <div>
                     <button id="export-data">Eksporter all data</button>
@@ -778,6 +784,7 @@ export function showAdminModal() {
     const closeBtn = currentModal.querySelector('[aria-label="Lukk"]');
     const closeFooterBtn = currentModal.querySelector('[data-modal-close]');
     const settingsForm = document.getElementById('settings-form');
+    const reportBtn = document.getElementById('download-sales-report');
     const exportBtn = document.getElementById('export-data');
     const importBtn = document.getElementById('import-data');
     const importFile = document.getElementById('import-file');
@@ -866,6 +873,7 @@ export function showAdminModal() {
         productList?.removeEventListener('submit', handleProductSave);
         productList?.removeEventListener('click', handleProductRemove);
         addProductForm?.removeEventListener('submit', handleAddProduct);
+        reportBtn?.removeEventListener('click', handleDownloadSalesReport);
     };
 
     const handleClose = () => {
@@ -917,6 +925,26 @@ export function showAdminModal() {
         e.target.value = '';
     };
 
+    const handleDownloadSalesReport = async () => {
+        reportBtn.disabled = true;
+        reportBtn.textContent = 'Lager rapport…';
+        try {
+            const blob = await storage.downloadSalesReport();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bodenbar-salgsrapport-${new Date().toISOString().split('T')[0]}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Salgsrapport lastet ned', 'success');
+        } catch (error) {
+            showToast(error.message || 'Kunne ikke lage salgsrapport', 'error');
+        } finally {
+            reportBtn.disabled = false;
+            reportBtn.textContent = 'Last ned salgsrapport (siste 30 dager)';
+        }
+    };
+
     const handleClear = () => {
         showConfirmModal(
             'Slett ALL data',
@@ -945,4 +973,5 @@ export function showAdminModal() {
     productList?.addEventListener('submit', handleProductSave);
     productList?.addEventListener('click', handleProductRemove);
     addProductForm?.addEventListener('submit', handleAddProduct);
+    reportBtn?.addEventListener('click', handleDownloadSalesReport);
 }

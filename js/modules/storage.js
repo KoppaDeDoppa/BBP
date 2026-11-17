@@ -70,6 +70,17 @@ class Storage {
         if (!response.ok) throw new Error(body?.error || body?.message || `API-feil (${response.status})`);
         return body;
     }
+    async downloadSalesReport() {
+        const response = await fetch('/api/admin/reports/sales.pdf', { credentials: 'same-origin', cache: 'no-store' });
+        if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            throw new Error(body?.error || `Kunne ikke lage salgsrapport (${response.status}).`);
+        }
+        if (response.headers.get('content-type')?.split(';')[0].trim() !== 'application/pdf') {
+            throw new Error('Serveren returnerte ikke en PDF. Prøv igjen.');
+        }
+        return response.blob();
+    }
     async loadState(since = null) {
         const result = await this.request(`/state${since == null ? '' : `?since=${encodeURIComponent(since)}`}`);
         if (!result.unchanged) {

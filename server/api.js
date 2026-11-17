@@ -1,5 +1,7 @@
 const express = require('express');
 const crypto = require('node:crypto');
+const { generateReport } = require('./sales-report');
+const { renderSalesPdf } = require('./sales-report-pdf');
 const {
     DEFAULT_PRODUCTS, DEFAULT_SETTINGS, bumpRevision, getRevision, getSettings, getState
 } = require('./database');
@@ -40,7 +42,7 @@ function serializeSettings(db) {
     return getSettings(db);
 }
 
-function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch } = {}) {
+function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch, now = () => new Date() } = {}) {
     const router = express.Router();
     const auth = requireAuth(db);
     const adminOnly = [auth, requireRole('admin')];
@@ -356,6 +358,19 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
             const updated = db.prepare('SELECT id, username, role, active, created_at FROM users WHERE id = ?').get(user.id);
             res.json({ id: updated.id, username: updated.username, role: updated.role, active: Boolean(updated.active), createdAt: updated.created_at });
         } catch (error) { error.status ||= 400; next(error); }
+    });
+
+    router.get('/admin/reports/sales.pdf', (_req, res, next) => {
+        res.set('Cache-Control', 'no-store');
+        next();
+    }, ...adminOnly, async (_req, res, next) => {
+        try {
+            const report = generateReport(db, now());
+            const pdf = await renderSalesPdf(report);
+            res.type('application/pdf');
+            res.attachment(`bodenbar-salgsrapport-${report.end.slice(0, 10)}.pdf`);
+            res.send(pdf);
+        } catch (error) { next(error); }
     });
 
     router.get('/admin/backup', ...adminOnly, (req, res) => {

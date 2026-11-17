@@ -5,7 +5,7 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test"
+        "test": "node --test"
   },
   "repository": {
     "type": "git",
@@ -19,7 +19,8 @@
   "homepage": "https://github.com/KoppaDeDoppa/BBP#readme",
   "dependencies": {
     "better-sqlite3": "^13.0.3",
-    "express": "^5.3.0"
+    "express": "^5.3.0",
+    "pdfkit": "^0.20.2"
   },
   "devDependencies": {
     "playwright": "^1.65.0"

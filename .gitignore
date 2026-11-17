@@ -6,3 +6,5 @@ data/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+to-doo.txt
+startup.txt
