@@ -79,6 +79,56 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
             updatedAt: keg.updatedAt }] : [] });
     });
 
+    // Leaderboard endpoint for display cycling
+    router.get('/integrations/leaderboard', (req, res) => {
+        res.set('Cache-Control', 'no-store');
+        const secret = env.KEG_TRACKING_SECRET;
+        if (typeof secret !== 'string' || secret.length < 32 || !/^[\x21-\x7e]+$/.test(secret)) {
+            return res.status(503).json({ error: 'Fatvisning er ikke konfigurert.' });
+        }
+        const expected = crypto.createHash('sha256').update(`Bearer ${secret}`).digest();
+        const supplied = crypto.createHash('sha256').update(req.get('authorization') || '').digest();
+        if (!crypto.timingSafeEqual(expected, supplied)) return res.status(401).json({ error: 'Uautorisert.' });
+
+        // Get start of current month in Oslo timezone
+        const now = new Date();
+        const year = new Intl.DateTimeFormat('en-CA', { timeZone: env.TZ || 'Europe/Oslo', year: 'numeric' }).format(now);
+        const month = new Intl.DateTimeFormat('en-CA', { timeZone: env.TZ || 'Europe/Oslo', month: '2-digit' }).format(now);
+        const monthStart = `${year}-${month}-01T00:00:00.000Z`;
+
+        // Get all active customers and their purchases this month
+        const customers = db.prepare('SELECT id, name FROM customers WHERE archived = 0').all();
+        const transactions = db.prepare(`
+            SELECT customer_id, type, amount FROM transactions
+            WHERE timestamp >= ? AND type IN ('purchase', 'correction')
+        `).all(monthStart);
+
+        // Aggregate by customer
+        const stats = new Map();
+        customers.forEach(c => stats.set(c.id, { name: c.name, drinks: 0, spent: 0 }));
+        transactions.forEach(t => {
+            const s = stats.get(t.customer_id);
+            if (s) {
+                s.drinks += 1;
+                s.spent += t.amount;
+            }
+        });
+
+        // Convert to arrays and sort
+        const byDrinks = Array.from(stats.values())
+            .filter(s => s.drinks > 0)
+            .sort((a, b) => b.drinks - a.drinks)
+            .slice(0, 5)
+            .map((s, i) => ({ rank: i + 1, name: s.name, value: s.drinks }));
+        const bySpent = Array.from(stats.values())
+            .filter(s => s.spent > 0)
+            .sort((a, b) => b.spent - a.spent)
+            .slice(0, 5)
+            .map((s, i) => ({ rank: i + 1, name: s.name, value: s.spent }));
+
+        res.json({ byDrinks, bySpent, period: `${year}-${month}` });
+    });
+
     router.put('/admin/estimated-keg', ...adminOnly, (req, res) => {
         const result = db.transaction(() => {
             const keg = estimatedKeg.configure(db, req.body);
