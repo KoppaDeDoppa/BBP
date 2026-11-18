@@ -16,6 +16,7 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       TAP_DISPLAY_URL: ${TAP_DISPLAY_URL:-}
       PAYMENT_DISPLAY_SECRET: ${PAYMENT_DISPLAY_SECRET:-}
+      KEG_TRACKING_SECRET: ${KEG_TRACKING_SECRET:-}
       TZ: ${TZ:-Europe/Oslo}
     volumes:
       - bodenbar-data:/data

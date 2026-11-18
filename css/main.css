@@ -1204,7 +1204,66 @@ section h3 {
     margin-top: var(--space-3) !important;
 }
 
+.admin-keg-section {
+    margin: var(--space-5) 0;
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.admin-keg-section p,
+.estimated-keg-form > p {
+    margin: 0 0 var(--space-4);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+}
+
+[data-modal] .keg-volume-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+}
+
+.keg-volume-fields label {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.keg-product-selection {
+    display: grid;
+    gap: var(--space-3);
+    margin: var(--space-4) 0;
+    padding: var(--space-4);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.keg-product-selection legend {
+    padding: 0 var(--space-2);
+    color: var(--fg-secondary);
+    font-size: var(--text-sm);
+}
+
+.keg-product-selection .admin-member-toggle {
+    white-space: normal;
+}
+
+.keg-product-selection input[type="checkbox"] {
+    flex: 0 0 18px;
+}
+
+[data-modal] .keg-form-actions {
+    flex-wrap: wrap;
+}
+
+[data-modal] .keg-form-error {
+    color: #ff829c;
+}
+
 @media (max-width: 600px) {
+    [data-modal] .keg-volume-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     #modals-container {
         align-items: flex-end;
         padding: 0;

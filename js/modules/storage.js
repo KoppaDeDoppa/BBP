@@ -253,6 +253,24 @@ class Storage {
         await this.loadState(this.revision);
         return result;
     }
+    getEstimatedKeg() {
+        return this.state.estimatedKeg || {
+            id: 'helles-lager', enabled: false, capacityMl: 0, remainingMl: 0,
+            rawRemainingMl: 0, cycleId: null, productIds: [], servingMl: 500
+        };
+    }
+    async saveEstimatedKeg(configuration) {
+        const result = await this.request('/admin/estimated-keg', {
+            method: 'PUT', body: JSON.stringify(configuration)
+        });
+        await this.loadState();
+        return result;
+    }
+    async resetEstimatedKeg() {
+        const result = await this.request('/admin/estimated-keg/reset', { method: 'POST' });
+        await this.loadState();
+        return result;
+    }
     getProducts() {
         return this.state.products || [];
     }
@@ -287,9 +305,9 @@ class Storage {
     }
     exportAllData() {
         return {
-            version: 2,
-            exportDate: new Date().toISOString(),
-            ...this.state
+            ...this.state,
+            version: 3,
+            exportDate: new Date().toISOString()
         };
     }
     async importAllData(data) {

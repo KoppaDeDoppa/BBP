@@ -702,8 +702,125 @@ function renderAdminProductRows() {
 /**
  * Show admin modal
  */
+export function showEstimatedKegModal(draft = null) {
+    const keg = storage.getEstimatedKeg();
+    const configuration = draft || {
+        enabled: keg.enabled, capacityLitres: keg.capacityMl ? keg.capacityMl / 1000 : '',
+        productIds: keg.productIds || []
+    };
+    const selected = new Set(configuration.productIds);
+    const products = storage.getProducts();
+    const summary = keg.capacityMl
+        ? `${(keg.remainingMl / 1000).toFixed(1)} L av ${(keg.capacityMl / 1000).toFixed(1)} L igjen (anslag).`
+        : 'Velg produkter og angi kapasitet og nåværende volum for å starte.';
+    showModal(`
+        <div>
+            <h3 id="modal-title">Fat uten vekt</h3>
+            <button aria-label="Lukk">×</button>
+        </div>
+        <form id="estimated-keg-form" class="estimated-keg-form">
+            <p role="status">${escapeHtml(summary)}</p>
+            <p>Hvert kjøp av et valgt produkt trekker 0,5 L, også gratis medlemsserveringer. Angring legger volumet tilbake. Søl og uregistrerte serveringer må justeres manuelt.</p>
+            <label class="admin-member-toggle"><input type="checkbox" name="enabled" ${configuration.enabled ? 'checked' : ''}> Aktiver beregning</label>
+            <div class="keg-volume-fields">
+                <label for="keg-capacity">Fatets kapasitet (L)
+                    <input id="keg-capacity" name="capacityLitres" type="number" min="0.001" max="10000" step="0.001" inputmode="decimal" value="${escapeHtml(configuration.capacityLitres)}" placeholder="For eksempel 30">
+                </label>
+                <label for="keg-current">Sett gjenværende volum (L)
+                    <input id="keg-current" name="currentLitres" type="number" min="0" max="10000" step="0.001" inputmode="decimal" value="${escapeHtml(configuration.currentLitres ?? '')}" placeholder="${keg.capacityMl ? 'Tomt felt beholder anslaget' : 'Påkrevd ved første oppsett'}" aria-describedby="keg-calibration-note">
+                </label>
+            </div>
+            <p id="keg-calibration-note">Et nytt volum starter en ny beregning. Angring av tidligere kjøp endrer da ikke dette volumet.</p>
+            <fieldset class="keg-product-selection">
+                <legend>Produkter som serveres fra dette fatet</legend>
+                ${products.map(product => `<label class="admin-member-toggle"><input type="checkbox" name="productId" value="${escapeHtml(product.id)}" ${selected.has(product.id) ? 'checked' : ''}> <span>${escapeHtml(product.name)}${product.member ? ' (medlem)' : ''}</span></label>`).join('') || '<p>Legg til et produkt i adminpanelet først.</p>'}
+            </fieldset>
+            <p id="keg-form-error" class="keg-form-error" role="alert" hidden></p>
+            <div class="keg-form-actions">
+                <button type="submit">Lagre fatinnstillinger</button>
+                <button type="button" id="keg-reset" ${!keg.enabled || !keg.cycleId ? 'disabled' : ''}>Koble til nytt, fullt fat</button>
+            </div>
+        </form>
+        <div><button id="keg-back">Tilbake til admin</button></div>
+    `, { focusForm: false });
+
+    const form = document.getElementById('estimated-keg-form');
+    const errorEl = document.getElementById('keg-form-error');
+    const reportError = error => {
+        errorEl.textContent = error.message || 'Kunne ikke lagre fatinnstillinger.';
+        errorEl.hidden = false;
+    };
+    const save = async payload => {
+        // The form may have been replaced by a confirmation modal.
+        const activeForm = document.getElementById('estimated-keg-form');
+        if (activeForm?.dataset.pending === 'true') return;
+        if (activeForm) {
+            activeForm.dataset.pending = 'true';
+            activeForm.querySelectorAll('button').forEach(button => { button.disabled = true; });
+        }
+        try {
+            await storage.saveEstimatedKeg(payload);
+            refreshUI();
+            showEstimatedKegModal();
+            showToast('Fatinnstillinger lagret', 'success');
+        } catch (error) {
+            showEstimatedKegModal(payload);
+            const message = document.getElementById('keg-form-error');
+            message.textContent = error.message || 'Kunne ikke lagre fatinnstillinger.';
+            message.hidden = false;
+        }
+    };
+    form.addEventListener('submit', event => {
+        event.preventDefault();
+        if (form.dataset.pending === 'true' || !form.reportValidity()) return;
+        const data = new FormData(form);
+        const payload = {
+            enabled: form.elements.enabled.checked,
+            capacityLitres: Number(data.get('capacityLitres')),
+            productIds: data.getAll('productId')
+        };
+        const current = String(data.get('currentLitres')).trim();
+        if (current !== '') payload.currentLitres = Number(current);
+        if (payload.enabled && (!payload.capacityLitres || !payload.productIds.length || (!keg.capacityMl && current === ''))) {
+            reportError(new Error('Velg minst ett produkt og angi kapasitet. Første oppsett krever også gjenværende volum.'));
+            return;
+        }
+        if (current !== '' && (payload.currentLitres < 0 || payload.currentLitres > payload.capacityLitres)) {
+            reportError(new Error('Gjenværende volum må være mellom 0 og fatets kapasitet.'));
+            return;
+        }
+        if (current !== '' && keg.capacityMl) {
+            showConfirmModal('Sett gjenværende volum', 'Dette starter en ny beregning. Angring eller retting av eldre kjøp vil ikke endre det nye volumet.', 'warning',
+                () => { showEstimatedKegModal(payload); save(payload); }, () => showEstimatedKegModal(payload));
+        } else save(payload);
+    });
+    document.getElementById('keg-reset').addEventListener('click', () => {
+        if (form.dataset.pending === 'true') return;
+        showConfirmModal('Koble til nytt, fullt fat', `Sett anslaget til ${(keg.capacityMl / 1000).toFixed(1)} L? Kjøp fra det forrige fatet vil ikke endre det nye fatet. Eventuelle ulagrede skjemaendringer brukes ikke.`, 'warning', async () => {
+            showEstimatedKegModal();
+            const currentForm = document.getElementById('estimated-keg-form');
+            currentForm.dataset.pending = 'true';
+            currentForm.querySelectorAll('button').forEach(button => { button.disabled = true; });
+            try {
+                await storage.resetEstimatedKeg();
+                refreshUI();
+                showEstimatedKegModal();
+                showToast('Nytt fat tilkoblet', 'success');
+            } catch (error) {
+                showEstimatedKegModal();
+                const message = document.getElementById('keg-form-error');
+                message.textContent = error.message;
+                message.hidden = false;
+            }
+        }, () => showEstimatedKegModal());
+    });
+    document.getElementById('keg-back').addEventListener('click', () => showAdminModal());
+    currentModal.querySelector('[aria-label="Lukk"]').addEventListener('click', closeModal);
+}
+
 export function showAdminModal() {
     const settings = storage.getSettings();
+    const keg = storage.getEstimatedKeg();
 
     const content = `
         <div>
@@ -726,6 +843,12 @@ export function showAdminModal() {
                     <button type="submit">Lagre innstillinger</button>
                 </form>
             </div>
+
+            <section class="admin-keg-section" aria-labelledby="admin-keg-heading">
+                <h4 id="admin-keg-heading">Fat uten vekt</h4>
+                <p>${keg.enabled ? `Anslått ${escapeHtml((keg.remainingMl / 1000).toFixed(1))} L igjen. Hver registrerte servering trekker 0,5 L.` : 'Ikke aktivert. Beregn gjenværende øl fra registrerte serveringer.'}</p>
+                <button id="manage-estimated-keg">Administrer fat uten vekt</button>
+            </section>
 
             <section class="admin-products-section" aria-labelledby="admin-products-heading">
                 <h4 id="admin-products-heading">Produktmeny</h4>
@@ -785,6 +908,8 @@ export function showAdminModal() {
     const closeFooterBtn = currentModal.querySelector('[data-modal-close]');
     const settingsForm = document.getElementById('settings-form');
     const reportBtn = document.getElementById('download-sales-report');
+    const manageKegBtn = document.getElementById('manage-estimated-keg');
+    const handleManageKeg = () => { cleanup(); showEstimatedKegModal(); };
     const exportBtn = document.getElementById('export-data');
     const importBtn = document.getElementById('import-data');
     const importFile = document.getElementById('import-file');
@@ -874,6 +999,7 @@ export function showAdminModal() {
         productList?.removeEventListener('click', handleProductRemove);
         addProductForm?.removeEventListener('submit', handleAddProduct);
         reportBtn?.removeEventListener('click', handleDownloadSalesReport);
+        manageKegBtn?.removeEventListener('click', handleManageKeg);
     };
 
     const handleClose = () => {
@@ -913,10 +1039,20 @@ export function showAdminModal() {
         reader.onload = async (event) => {
             try {
                 const data = JSON.parse(event.target.result);
-                await storage.importAllData(data);
-                showToast('Data importert', 'success');
-                refreshUI();
-                closeModal();
+                showConfirmModal('Importer sikkerhetskopi',
+                    data.version === 3
+                        ? 'Dette erstatter kunder, produkter og historikk, og gjenoppretter også fatets lagrede volumanslag. Volumet i sikkerhetskopien kan avvike fra det som er igjen nå.'
+                        : 'Dette erstatter kunder, produkter og historikk. Nåværende fatvolum beholdes; importerte kjøp endrer ikke volumet. Kontroller produktkoblingene etter import.',
+                    'warning', async () => {
+                        try {
+                            await storage.importAllData(data);
+                            showToast('Data importert', 'success');
+                            refreshUI();
+                        } catch (error) {
+                            showToast(error.message || 'Kunne ikke importere data', 'error');
+                        }
+                        showAdminModal();
+                    }, () => showAdminModal());
             } catch (error) {
                 showToast(error.message || 'Ugyldig filformat', 'error');
             }
@@ -948,7 +1084,7 @@ export function showAdminModal() {
     const handleClear = () => {
         showConfirmModal(
             'Slett ALL data',
-            'Dette vil slette ALLE kunder, transaksjoner og innstillinger. Denne handlingen kan ikke angres.',
+            'Dette vil slette ALLE kunder, transaksjoner, produkter og vanlige innstillinger. Fatets gjenværende volum beholdes, men produktkoblinger som ikke lenger finnes, fjernes. Denne handlingen kan ikke angres.',
             'danger',
             async () => {
                 try {
@@ -974,4 +1110,5 @@ export function showAdminModal() {
     productList?.addEventListener('click', handleProductRemove);
     addProductForm?.addEventListener('submit', handleAddProduct);
     reportBtn?.addEventListener('click', handleDownloadSalesReport);
+    manageKegBtn?.addEventListener('click', handleManageKeg);
 }

@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const Database = require('better-sqlite3');
+const estimatedKeg = require('./estimated-keg');
 
 const DEFAULT_PRODUCTS = [
     { id: 'beer', name: 'Øl', price: 50, icon: '🍺', member: false, fat: false },
@@ -79,6 +80,8 @@ function openDatabase(filename = process.env.DATABASE_PATH || './data/bodenbar.s
         db.exec('ALTER TABLE products ADD COLUMN fat INTEGER NOT NULL DEFAULT 0 CHECK (fat IN (0, 1))');
     }
 
+    estimatedKeg.initialise(db);
+
     const seed = db.transaction(() => {
         const productCount = db.prepare('SELECT COUNT(*) AS count FROM products').get().count;
         if (productCount === 0) {
@@ -131,6 +134,7 @@ function getState(db, user) {
     const transactions = db.prepare('SELECT * FROM transactions ORDER BY sequence').all().map(row => ({
         id: row.id, customerId: row.customer_id, type: row.type, productId: row.product_id,
         productName: row.product_name, amount: row.amount, price: row.price, timestamp: row.timestamp,
+        consumption: row.consumption_cycle_id === null ? null : { cycleId: row.consumption_cycle_id, ml: row.consumed_ml },
         ...(row.corrected ? { corrected: true, correctedAt: row.corrected_at } : {})
     }));
     const products = db.prepare('SELECT id, name, price, icon, member, fat FROM products ORDER BY rowid').all().map(row => ({ ...row, member: Boolean(row.member), fat: Boolean(row.fat) }));
@@ -146,7 +150,7 @@ function getState(db, user) {
         if (!customer.archived && customer.balance > 0) stats.outstanding += customer.balance;
         if (!customer.archived && (customer.balance !== 0 || !paidCustomerIds.has(customer.id))) stats.activeCustomers++;
     });
-    return { revision: getRevision(db), user: { id: user.id, username: user.username, role: user.role }, customers, transactions, products, settings: getSettings(db), dailyStats: stats };
+    return { estimatedKeg: estimatedKeg.get(db), revision: getRevision(db), user: { id: user.id, username: user.username, role: user.role }, customers, transactions, products, settings: getSettings(db), dailyStats: stats };
 }
 
 module.exports = { DEFAULT_PRODUCTS, DEFAULT_SETTINGS, openDatabase, bumpRevision, getRevision, getSettings, getState };

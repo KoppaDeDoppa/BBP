@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('node:crypto');
+const estimatedKeg = require('./estimated-keg');
 const { generateReport } = require('./sales-report');
 const { renderSalesPdf } = require('./sales-report-pdf');
 const {
@@ -62,6 +63,39 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
     });
 
     router.get('/health', (_req, res) => res.json({ ok: true }));
+
+    router.get('/integrations/kegs', (req, res) => {
+        res.set('Cache-Control', 'no-store');
+        const secret = env.KEG_TRACKING_SECRET;
+        if (typeof secret !== 'string' || secret.length < 32 || !/^[\x21-\x7e]+$/.test(secret)) {
+            return res.status(503).json({ error: 'Fatvisning er ikke konfigurert.' });
+        }
+        const expected = crypto.createHash('sha256').update(`Bearer ${secret}`).digest();
+        const supplied = crypto.createHash('sha256').update(req.get('authorization') || '').digest();
+        if (!crypto.timingSafeEqual(expected, supplied)) return res.status(401).json({ error: 'Uautorisert.' });
+        const keg = estimatedKeg.get(db);
+        res.json({ kegs: keg.enabled ? [{ id: keg.id, source: 'estimated', amount_left: keg.remainingMl / 1000,
+            max_keg_volume: keg.capacityMl / 1000, percent_of_beer_left: keg.remainingMl / keg.capacityMl * 100,
+            updatedAt: keg.updatedAt }] : [] });
+    });
+
+    router.put('/admin/estimated-keg', ...adminOnly, (req, res) => {
+        const result = db.transaction(() => {
+            const keg = estimatedKeg.configure(db, req.body);
+            bumpRevision(db);
+            return keg;
+        })();
+        res.json(result);
+    });
+
+    router.post('/admin/estimated-keg/reset', ...adminOnly, (_req, res) => {
+        const result = db.transaction(() => {
+            const keg = estimatedKeg.reset(db);
+            bumpRevision(db);
+            return keg;
+        })();
+        res.json(result);
+    });
 
     router.get('/auth/session', (req, res) => {
         const token = getCookie(req, SESSION_COOKIE);
@@ -221,10 +255,11 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
             db.prepare(`INSERT INTO transactions (id, customer_id, type, product_id, product_name, amount, price, timestamp)
                 VALUES (@id, @customerId, @type, @productId, @productName, @amount, @price, @timestamp)`).run(transaction);
             db.prepare('UPDATE customers SET balance = balance + ?, updated_at = ? WHERE id = ?').run(product.price, transaction.timestamp, customerId);
+            transaction.consumption = estimatedKeg.purchase(db, transaction.id, productId);
+            bumpRevision(db);
             return transaction;
         });
         const transaction = execute();
-        bumpRevision(db);
         res.status(201).json(transaction);
     });
 
@@ -253,13 +288,14 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
         const execute = db.transaction(() => {
             const last = db.prepare('SELECT * FROM transactions WHERE customer_id = ? ORDER BY sequence DESC LIMIT 1').get(req.params.customerId);
             if (!last || last.type !== 'purchase') return null;
+            estimatedKeg.undo(db, last);
             db.prepare('DELETE FROM transactions WHERE id = ?').run(last.id);
             db.prepare('UPDATE customers SET balance = balance - ?, updated_at = ? WHERE id = ?').run(last.amount, new Date().toISOString(), last.customer_id);
+            bumpRevision(db);
             return { id: last.id, productName: last.product_name, amount: last.amount };
         });
         const removed = execute();
         if (!removed) return res.status(404).json({ error: 'Ingen kjøp å angre.' });
-        bumpRevision(db);
         res.json(removed);
     });
 
@@ -271,15 +307,16 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
             if (!transaction) badRequest('Kjøpet finnes ikke lenger.');
             const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
             if (!product) badRequest('Produktet finnes ikke lenger.');
+            const consumption = estimatedKeg.correct(db, transaction, productId);
             const difference = amount - transaction.amount;
             const now = new Date().toISOString();
             db.prepare('UPDATE transactions SET product_id = ?, product_name = ?, amount = ?, price = ?, corrected = 1, corrected_at = ? WHERE id = ?')
                 .run(productId, product.name, amount, amount, now, transaction.id);
             db.prepare('UPDATE customers SET balance = balance + ?, updated_at = ? WHERE id = ?').run(difference, now, transaction.customer_id);
-            return { id: transaction.id, productId, productName: product.name, amount, price: amount, corrected: true, correctedAt: now };
+            bumpRevision(db);
+            return { id: transaction.id, productId, productName: product.name, amount, price: amount, corrected: true, correctedAt: now, consumption };
         });
         const corrected = execute();
-        bumpRevision(db);
         res.json(corrected);
     });
 
@@ -305,7 +342,11 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
         if (db.prepare('SELECT 1 FROM transactions WHERE product_id = ? LIMIT 1').get(req.params.id)) {
             return res.status(409).json({ error: 'Produktet er brukt i historikken og kan ikke fjernes.' });
         }
-        const result = db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
+        const result = db.transaction(() => {
+            const deleted = db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
+            estimatedKeg.prune(db);
+            return deleted;
+        })();
         if (!result.changes) return res.status(404).json({ error: 'Produktet finnes ikke.' });
         bumpRevision(db);
         res.json({ ok: true });
@@ -375,13 +416,13 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
 
     router.get('/admin/backup', ...adminOnly, (req, res) => {
         const data = getState(db, req.user);
-        res.json({ version: 2, exportDate: new Date().toISOString(), customers: data.customers, transactions: data.transactions, products: data.products, settings: data.settings });
+        res.json({ version: 3, estimatedKeg: data.estimatedKeg, exportDate: new Date().toISOString(), customers: data.customers, transactions: data.transactions, products: data.products, settings: data.settings });
     });
 
     router.post('/admin/restore', ...adminOnly, (req, res) => {
         const backup = req.body;
-        if (!backup || backup.version !== 2 || !Array.isArray(backup.customers) || !Array.isArray(backup.transactions) || !Array.isArray(backup.products) || !backup.settings || typeof backup.settings !== 'object') {
-            badRequest('Ugyldig BodenBar-sikkerhetskopi (forventet versjon 2).');
+        if (!backup || ![2, 3].includes(backup.version) || !Array.isArray(backup.customers) || !Array.isArray(backup.transactions) || !Array.isArray(backup.products) || !backup.settings || typeof backup.settings !== 'object') {
+            badRequest('Ugyldig BodenBar-sikkerhetskopi (forventet versjon 2 eller 3).');
         }
         const customers = backup.customers.map(item => {
             if (!item || typeof item !== 'object') badRequest('Kundedata i sikkerhetskopien er ugyldige.');
@@ -396,6 +437,8 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
         if (customerIds.size !== customers.length) badRequest('Sikkerhetskopien inneholder dupliserte kunder.');
         const products = backup.products.map(validateProduct);
         if (new Set(products.map(product => product.id)).size !== products.length) badRequest('Sikkerhetskopien inneholder dupliserte produkter.');
+        const restoredKeg = backup.version === 3 ? estimatedKeg.validateBackup(backup.estimatedKeg, new Set(products.map(product => product.id))) : null;
+        const retainedKeg = estimatedKeg.get(db);
         const transactions = backup.transactions.map(item => {
             if (!item || typeof item !== 'object' || !customerIds.has(item.customerId)) badRequest('Transaksjonsdata i sikkerhetskopien er ugyldige.');
             if (!['purchase', 'payment', 'correction'].includes(item.type) || !Number.isSafeInteger(item.amount)) badRequest('Transaksjonsdata i sikkerhetskopien er ugyldige.');
@@ -403,6 +446,7 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
                 id: requireText(item.id, 'Transaksjons-ID', 64), customerId: item.customerId, type: item.type,
                 productId: requireText(item.productId, 'Produkt-ID', 64), productName: requireText(item.productName, 'Produktnavn', 120),
                 amount: item.amount, price: Number.isSafeInteger(item.price) ? item.price : item.amount,
+                consumption: backup.version === 3 ? estimatedKeg.validateConsumption(item.consumption, item.type) : null,
                 timestamp: requireText(item.timestamp, 'Transaksjonstid', 40), corrected: Boolean(item.corrected), correctedAt: item.correctedAt || null
             };
         });
@@ -419,9 +463,11 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
             customers.forEach(customer => addCustomer.run(customer.id, customer.name, customer.balance, Number(customer.archived), customer.createdAt, customer.updatedAt));
             const addProduct = db.prepare('INSERT INTO products (id, name, price, icon, member, fat) VALUES (?, ?, ?, ?, ?, ?)');
             products.forEach(product => addProduct.run(product.id, product.name, product.price, product.icon, Number(product.member), Number(product.fat)));
-            const addTransaction = db.prepare(`INSERT INTO transactions (id, customer_id, type, product_id, product_name, amount, price, timestamp, corrected, corrected_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-            transactions.forEach(transaction => addTransaction.run(transaction.id, transaction.customerId, transaction.type, transaction.productId, transaction.productName, transaction.amount, transaction.price, transaction.timestamp, Number(transaction.corrected), transaction.correctedAt));
+            const addTransaction = db.prepare(`INSERT INTO transactions (id, customer_id, type, product_id, product_name, amount, price, timestamp, corrected, corrected_at, consumption_cycle_id, consumed_ml)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            transactions.forEach(transaction => addTransaction.run(transaction.id, transaction.customerId, transaction.type, transaction.productId, transaction.productName, transaction.amount, transaction.price, transaction.timestamp, Number(transaction.corrected), transaction.correctedAt, transaction.consumption?.cycleId ?? null, transaction.consumption?.ml ?? null));
+            if (restoredKeg) estimatedKeg.save(db, restoredKeg);
+            else estimatedKeg.retain(db, retainedKeg);
             db.prepare('DELETE FROM settings').run();
             Object.entries(settings).forEach(([key, value]) => db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run(key, JSON.stringify(value)));
         });
@@ -431,11 +477,13 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
     });
 
     router.post('/admin/clear', ...adminOnly, (req, res) => {
+        const retainedKeg = estimatedKeg.get(db);
         const clear = db.transaction(() => {
             db.prepare('DELETE FROM customers').run();
             db.prepare('DELETE FROM products').run();
             const insert = db.prepare('INSERT INTO products (id, name, price, icon, member, fat) VALUES (?, ?, ?, ?, ?, ?)');
             DEFAULT_PRODUCTS.forEach(product => insert.run(product.id, product.name, product.price, product.icon, Number(product.member), Number(product.fat)));
+            estimatedKeg.retain(db, retainedKeg);
             db.prepare('DELETE FROM settings').run();
             Object.entries(DEFAULT_SETTINGS).forEach(([key, value]) => db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run(key, JSON.stringify(value)));
         });
