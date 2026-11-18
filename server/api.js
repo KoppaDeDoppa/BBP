@@ -114,16 +114,16 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
             }
         });
 
-        // Convert to arrays and sort
+        // Convert to arrays and sort - return top 22 for display
         const byDrinks = Array.from(stats.values())
             .filter(s => s.drinks > 0)
             .sort((a, b) => b.drinks - a.drinks)
-            .slice(0, 5)
+            .slice(0, 22)
             .map((s, i) => ({ rank: i + 1, name: s.name, value: s.drinks }));
         const bySpent = Array.from(stats.values())
             .filter(s => s.spent > 0)
             .sort((a, b) => b.spent - a.spent)
-            .slice(0, 5)
+            .slice(0, 22)
             .map((s, i) => ({ rank: i + 1, name: s.name, value: s.spent }));
 
         res.json({ byDrinks, bySpent, period: `${year}-${month}` });
