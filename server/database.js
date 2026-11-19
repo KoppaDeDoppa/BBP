@@ -106,12 +106,31 @@ function getRevision(db) {
     return Number(db.prepare("SELECT value FROM metadata WHERE key = 'revision'").get().value);
 }
 
-function currentDay(date = new Date()) {
+const BUSINESS_DAY_START_HOUR = 4; // 04:00 local time
+
+function businessDay(date = new Date()) {
+    const timeZone = process.env.TZ || 'Europe/Oslo';
+    // Get the date components in the local time zone
     const parts = new Intl.DateTimeFormat('en-CA', {
-        timeZone: process.env.TZ || 'Europe/Oslo', year: 'numeric', month: '2-digit', day: '2-digit'
+        timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23'
     }).formatToParts(date);
     const fields = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    const hour = Number(fields.hour);
+    // If before business day start hour, use previous calendar day
+    if (hour < BUSINESS_DAY_START_HOUR) {
+        const prevDay = new Date(date.getTime() - 24 * 60 * 60 * 1000);
+        const prevParts = new Intl.DateTimeFormat('en-CA', {
+            timeZone, year: 'numeric', month: '2-digit', day: '2-digit'
+        }).formatToParts(prevDay);
+        const prevFields = Object.fromEntries(prevParts.map(part => [part.type, part.value]));
+        return `${prevFields.year}-${prevFields.month}-${prevFields.day}`;
+    }
     return `${fields.year}-${fields.month}-${fields.day}`;
+}
+
+// Alias for backward compatibility
+function currentDay(date = new Date()) {
+    return businessDay(date);
 }
 
 function localDay(isoDate) {

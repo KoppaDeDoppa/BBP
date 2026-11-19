@@ -187,7 +187,14 @@ class Storage {
     }
     getTodayString() {
         const n = new Date();
-        return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+        // Business day starts at 04:00 local time
+        const businessDayStartHour = 4;
+        const hour = n.getHours();
+        let date = n;
+        if (hour < businessDayStartHour) {
+            date = new Date(n.getTime() - 24 * 60 * 60 * 1000);
+        }
+        return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
     }
     getTodayTransactions() {
         return this.getTransactions().filter(t => (t.timestamp || '').startsWith(this.getTodayString()));

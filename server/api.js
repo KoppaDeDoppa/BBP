@@ -6,6 +6,7 @@ const { renderSalesPdf } = require('./sales-report-pdf');
 const {
     DEFAULT_PRODUCTS, DEFAULT_SETTINGS, bumpRevision, getRevision, getSettings, getState
 } = require('./database');
+const { listBackups, readBackup, BACKUP_DIR } = require('./backup');
 const {
     SESSION_COOKIE, verifyPassword, validateUsername, validatePassword, createUser,
     hashPassword, hashToken, getCookie, setSessionCookie, createSession, requireAuth, requireRole
@@ -469,61 +470,97 @@ function makeApi(db, { env = process.env, fetch: displayFetch = globalThis.fetch
         res.json({ version: 3, estimatedKeg: data.estimatedKeg, exportDate: new Date().toISOString(), customers: data.customers, transactions: data.transactions, products: data.products, settings: data.settings });
     });
 
-    router.post('/admin/restore', ...adminOnly, (req, res) => {
-        const backup = req.body;
-        if (!backup || ![2, 3].includes(backup.version) || !Array.isArray(backup.customers) || !Array.isArray(backup.transactions) || !Array.isArray(backup.products) || !backup.settings || typeof backup.settings !== 'object') {
-            badRequest('Ugyldig BodenBar-sikkerhetskopi (forventet versjon 2 eller 3).');
+    // List daily backup files
+    router.get('/admin/backups', ...adminOnly, (_req, res) => {
+        const backups = listBackups();
+        res.json({ backups });
+    });
+
+    // Download a specific backup file
+    router.get('/admin/backups/:filename', ...adminOnly, (req, res) => {
+        const filename = req.params.filename;
+        if (!/^bodenbar-backup-\d{4}-\d{2}-\d{2}\.json$/.test(filename)) {
+            return res.status(400).json({ error: 'Ugyldig filnavn.' });
         }
-        const customers = backup.customers.map(item => {
-            if (!item || typeof item !== 'object') badRequest('Kundedata i sikkerhetskopien er ugyldige.');
-            return {
-                id: requireText(item.id, 'Kunde-ID', 64), name: requireText(item.name, 'Kundenavn', 120),
-                balance: Number.isSafeInteger(item.balance) ? item.balance : badRequest('Kundesaldo i sikkerhetskopien er ugyldig.'),
-                archived: Boolean(item.archived), createdAt: requireText(item.createdAt, 'Opprettelsesdato', 40),
-                updatedAt: requireText(item.updatedAt, 'Endringsdato', 40)
+        const backup = readBackup(filename);
+        if (!backup) {
+            return res.status(404).json({ error: 'Sikkerhetskopi ikke funnet.' });
+        }
+        res.set('Content-Type', 'application/json');
+        res.attachment(filename);
+        res.send(JSON.stringify(backup, null, 2));
+    });
+
+    // Trigger manual backup
+    router.post('/admin/backups', ...adminOnly, (req, res) => {
+        try {
+            const { createBackup } = require('./backup');
+            const result = createBackup(db);
+            res.json({ ok: true, ...result });
+        } catch (error) {
+            res.status(500).json({ error: 'Kunne ikke opprette sikkerhetskopi: ' + error.message });
+        }
+    });
+
+    router.post('/admin/restore', ...adminOnly, (req, res, next) => {
+        try {
+            const backup = req.body;
+            if (!backup || ![2, 3].includes(backup.version) || !Array.isArray(backup.customers) || !Array.isArray(backup.transactions) || !Array.isArray(backup.products) || !backup.settings || typeof backup.settings !== 'object') {
+                badRequest('Ugyldig BodenBar-sikkerhetskopi (forventet versjon 2 eller 3).');
+            }
+            const customers = backup.customers.map(item => {
+                if (!item || typeof item !== 'object') badRequest('Kundedata i sikkerhetskopien er ugyldige.');
+                return {
+                    id: requireText(item.id, 'Kunde-ID', 64), name: requireText(item.name, 'Kundenavn', 120),
+                    balance: Number.isSafeInteger(item.balance) ? item.balance : badRequest('Kundesaldo i sikkerhetskopien er ugyldig.'),
+                    archived: Boolean(item.archived), createdAt: requireText(item.createdAt, 'Opprettelsesdato', 40),
+                    updatedAt: requireText(item.updatedAt, 'Endringsdato', 40)
+                };
+            });
+            const customerIds = new Set(customers.map(customer => customer.id));
+            if (customerIds.size !== customers.length) badRequest('Sikkerhetskopien inneholder dupliserte kunder.');
+            const products = backup.products.map(validateProduct);
+            if (new Set(products.map(product => product.id)).size !== products.length) badRequest('Sikkerhetskopien inneholder dupliserte produkter.');
+            const restoredKeg = backup.version === 3 ? estimatedKeg.validateBackup(backup.estimatedKeg, new Set(products.map(product => product.id))) : null;
+            const retainedKeg = estimatedKeg.get(db);
+            const transactions = backup.transactions.map(item => {
+                if (!item || typeof item !== 'object' || !customerIds.has(item.customerId)) badRequest('Transaksjonsdata i sikkerhetskopien er ugyldige.');
+                if (!['purchase', 'payment', 'correction'].includes(item.type) || !Number.isSafeInteger(item.amount)) badRequest('Transaksjonsdata i sikkerhetskopien er ugyldige.');
+                return {
+                    id: requireText(item.id, 'Transaksjons-ID', 64), customerId: item.customerId, type: item.type,
+                    productId: requireText(item.productId, 'Produkt-ID', 64), productName: requireText(item.productName, 'Produktnavn', 120),
+                    amount: item.amount, price: Number.isSafeInteger(item.price) ? item.price : item.amount,
+                    consumption: backup.version === 3 ? estimatedKeg.validateConsumption(item.consumption, item.type) : null,
+                    timestamp: requireText(item.timestamp, 'Transaksjonstid', 40), corrected: Boolean(item.corrected), correctedAt: item.correctedAt || null
+                };
+            });
+            const transactionIds = new Set(transactions.map(transaction => transaction.id));
+            if (transactionIds.size !== transactions.length) badRequest('Sikkerhetskopien inneholder dupliserte transaksjoner.');
+            const settings = {
+                vippsNumber: typeof backup.settings.vippsNumber === 'string' ? backup.settings.vippsNumber.slice(0, 40) : '',
+                theme: backup.settings.theme === 'light' ? 'light' : 'dark'
             };
-        });
-        const customerIds = new Set(customers.map(customer => customer.id));
-        if (customerIds.size !== customers.length) badRequest('Sikkerhetskopien inneholder dupliserte kunder.');
-        const products = backup.products.map(validateProduct);
-        if (new Set(products.map(product => product.id)).size !== products.length) badRequest('Sikkerhetskopien inneholder dupliserte produkter.');
-        const restoredKeg = backup.version === 3 ? estimatedKeg.validateBackup(backup.estimatedKeg, new Set(products.map(product => product.id))) : null;
-        const retainedKeg = estimatedKeg.get(db);
-        const transactions = backup.transactions.map(item => {
-            if (!item || typeof item !== 'object' || !customerIds.has(item.customerId)) badRequest('Transaksjonsdata i sikkerhetskopien er ugyldige.');
-            if (!['purchase', 'payment', 'correction'].includes(item.type) || !Number.isSafeInteger(item.amount)) badRequest('Transaksjonsdata i sikkerhetskopien er ugyldige.');
-            return {
-                id: requireText(item.id, 'Transaksjons-ID', 64), customerId: item.customerId, type: item.type,
-                productId: requireText(item.productId, 'Produkt-ID', 64), productName: requireText(item.productName, 'Produktnavn', 120),
-                amount: item.amount, price: Number.isSafeInteger(item.price) ? item.price : item.amount,
-                consumption: backup.version === 3 ? estimatedKeg.validateConsumption(item.consumption, item.type) : null,
-                timestamp: requireText(item.timestamp, 'Transaksjonstid', 40), corrected: Boolean(item.corrected), correctedAt: item.correctedAt || null
-            };
-        });
-        const transactionIds = new Set(transactions.map(transaction => transaction.id));
-        if (transactionIds.size !== transactions.length) badRequest('Sikkerhetskopien inneholder dupliserte transaksjoner.');
-        const settings = {
-            vippsNumber: typeof backup.settings.vippsNumber === 'string' ? backup.settings.vippsNumber.slice(0, 40) : '',
-            theme: backup.settings.theme === 'light' ? 'light' : 'dark'
-        };
-        const restore = db.transaction(() => {
-            db.prepare('DELETE FROM customers').run();
-            db.prepare('DELETE FROM products').run();
-            const addCustomer = db.prepare('INSERT INTO customers (id, name, balance, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
-            customers.forEach(customer => addCustomer.run(customer.id, customer.name, customer.balance, Number(customer.archived), customer.createdAt, customer.updatedAt));
-            const addProduct = db.prepare('INSERT INTO products (id, name, price, icon, member, fat) VALUES (?, ?, ?, ?, ?, ?)');
-            products.forEach(product => addProduct.run(product.id, product.name, product.price, product.icon, Number(product.member), Number(product.fat)));
-            const addTransaction = db.prepare(`INSERT INTO transactions (id, customer_id, type, product_id, product_name, amount, price, timestamp, corrected, corrected_at, consumption_cycle_id, consumed_ml)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-            transactions.forEach(transaction => addTransaction.run(transaction.id, transaction.customerId, transaction.type, transaction.productId, transaction.productName, transaction.amount, transaction.price, transaction.timestamp, Number(transaction.corrected), transaction.correctedAt, transaction.consumption?.cycleId ?? null, transaction.consumption?.ml ?? null));
-            if (restoredKeg) estimatedKeg.save(db, restoredKeg);
-            else estimatedKeg.retain(db, retainedKeg);
-            db.prepare('DELETE FROM settings').run();
-            Object.entries(settings).forEach(([key, value]) => db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run(key, JSON.stringify(value)));
-        });
-        restore();
-        bumpRevision(db);
-        res.json({ ok: true });
+            const restore = db.transaction(() => {
+                db.prepare('DELETE FROM customers').run();
+                db.prepare('DELETE FROM products').run();
+                const addCustomer = db.prepare('INSERT INTO customers (id, name, balance, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
+                customers.forEach(customer => addCustomer.run(customer.id, customer.name, customer.balance, Number(customer.archived), customer.createdAt, customer.updatedAt));
+                const addProduct = db.prepare('INSERT INTO products (id, name, price, icon, member, fat) VALUES (?, ?, ?, ?, ?, ?)');
+                products.forEach(product => addProduct.run(product.id, product.name, product.price, product.icon, Number(product.member), Number(product.fat)));
+                const addTransaction = db.prepare(`INSERT INTO transactions (id, customer_id, type, product_id, product_name, amount, price, timestamp, corrected, corrected_at, consumption_cycle_id, consumed_ml)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                transactions.forEach(transaction => addTransaction.run(transaction.id, transaction.customerId, transaction.type, transaction.productId, transaction.productName, transaction.amount, transaction.price, transaction.timestamp, Number(transaction.corrected), transaction.correctedAt, transaction.consumption?.cycleId ?? null, transaction.consumption?.ml ?? null));
+                if (restoredKeg) estimatedKeg.save(db, restoredKeg);
+                else estimatedKeg.retain(db, retainedKeg);
+                db.prepare('DELETE FROM settings').run();
+                Object.entries(settings).forEach(([key, value]) => db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run(key, JSON.stringify(value)));
+            });
+            restore();
+            bumpRevision(db);
+            res.json({ ok: true });
+        } catch (error) {
+            next(error);
+        }
     });
 
     router.post('/admin/clear', ...adminOnly, (req, res) => {

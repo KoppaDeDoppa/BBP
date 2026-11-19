@@ -3,10 +3,22 @@ const express = require('express');
 const { openDatabase } = require('./database');
 const { seedFirstAdmin } = require('./auth');
 const { makeApi } = require('./api');
+const { scheduleDailyBackup, createBackup } = require('./backup');
 
 async function start() {
     const db = openDatabase();
     await seedFirstAdmin(db);
+
+    // Create initial backup on startup
+    try {
+        createBackup(db);
+    } catch (error) {
+        console.error('[Backup] Initial backup failed:', error.message);
+    }
+
+    // Schedule daily backups at business day transition (04:00 Oslo)
+    scheduleDailyBackup(db);
+
     const app = express();
     app.disable('x-powered-by');
     app.use(express.json({ limit: '10mb' }));
